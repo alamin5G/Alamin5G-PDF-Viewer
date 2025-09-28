@@ -1,5 +1,5 @@
 jdk:
-  - openjdk21
+  - openjdk11
 
 before_install:
   - ./gradlew clean
