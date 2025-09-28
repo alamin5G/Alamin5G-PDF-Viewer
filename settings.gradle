@@ -16,12 +16,10 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven {
-            url 'https://jitpack.io'
-        }
     }
 }
 
-rootProject.name = "Alamin5G PDF Viewer"
-
+rootProject.name = "Alamin5G-PDF-Viewer"
+include ':app'
 include ':alamin5g-pdf-viewer'
+project(':alamin5g-pdf-viewer').projectDir = new File('alamin5g-pdf-viewer')

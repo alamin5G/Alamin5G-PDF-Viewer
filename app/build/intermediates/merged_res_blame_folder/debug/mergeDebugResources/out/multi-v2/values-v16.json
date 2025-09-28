@@ -1,0 +1,20 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.alamin5g.pdf.sample.app-mergeDebugResources-33:/values-v16/values-v16.xml",
+            "map": [
+                {
+                    "source": "/home/alamin/.gradle/caches/8.13/transforms/fc6bc1cac3610a8d120680fa9ae5aef6/transformed/appcompat-1.7.1/res/values-v16/values-v16.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endLines": "5",
+                        "endColumns": "12",
+                        "endOffsets": "223"
+                    }
+                }
+            ]
+        }
+    ]
+}

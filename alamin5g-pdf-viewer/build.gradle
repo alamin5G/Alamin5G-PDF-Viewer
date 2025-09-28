@@ -5,13 +5,13 @@ plugins {
 
 android {
     namespace 'com.alamin5g.pdf.viewer'
-    compileSdk 34
+    compileSdk 36
 
     defaultConfig {
         minSdk 24
-        targetSdk 34
-        versionCode 1
-        versionName "1.0.0-16kb"
+        targetSdk 36
+        versionCode 2
+        versionName "1.1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         
@@ -36,8 +36,8 @@ android {
     }
     
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     
     // 16KB Page Size Compatibility Configuration
@@ -55,20 +55,15 @@ android {
         ]
     }
     
-    publishing {
-        singleVariant('release') {
-            withSourcesJar()
-            withJavadocJar()
-        }
-    }
+// Publishing configuration removed for local testing
 }
 
 dependencies {
-    implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.material:material:1.10.0'
+    implementation 'androidx.appcompat:appcompat:1.7.1'
+    implementation 'com.google.android.material:material:1.13.0'
     testImplementation 'junit:junit:4.13.2'
-    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+    androidTestImplementation 'androidx.test.ext:junit:1.3.0'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.7.0'
 
     // Use Android's native PdfRenderer for 16KB compatibility
     implementation 'androidx.core:core:1.12.0'
@@ -77,41 +72,4 @@ dependencies {
     // implementation 'com.github.barteksc:pdfium-android:1.9.0'
 }
 
-publishing {
-    publications {
-        release(MavenPublication) {
-            from components.release
-            
-            groupId = 'com.github.alamin5g'
-            artifactId = 'Alamin5G-PDF-Viewer'
-            version = '1.0.0'
-            
-            pom {
-                name = 'Alamin5G PDF Viewer'
-                description = '16KB-compatible Android PDF library with native PdfRenderer support'
-                url = 'https://github.com/alamin5g/Alamin5G-PDF-Viewer'
-                
-                licenses {
-                    license {
-                        name = 'The Apache License, Version 2.0'
-                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
-                    }
-                }
-                
-                developers {
-                    developer {
-                        id = 'alamin5g'
-                        name = 'Alamin5G'
-                        email = 'your-email@example.com'
-                    }
-                }
-                
-                scm {
-                    connection = 'scm:git:git://github.com/alamin5g/Alamin5G-PDF-Viewer.git'
-                    developerConnection = 'scm:git:ssh://github.com:alamin5g/Alamin5G-PDF-Viewer.git'
-                    url = 'https://github.com/alamin5g/Alamin5G-PDF-Viewer/tree/main'
-                }
-            }
-        }
-    }
-}
+// Publishing configuration removed for local testing

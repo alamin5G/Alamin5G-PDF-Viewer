@@ -1,0 +1,129 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.alamin5g.pdf.sample"
+4    android:versionCode="1"
+5    android:versionName="1.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="27"
+9        android:targetSdkVersion="36" />
+10
+11    <permission
+11-->[androidx.core:core:1.13.0] /home/alamin/.gradle/caches/8.13/transforms/b363592e9e6c772f1f2f2c4926dc753c/transformed/core-1.13.0/AndroidManifest.xml:22:5-24:47
+12        android:name="com.alamin5g.pdf.sample.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+12-->[androidx.core:core:1.13.0] /home/alamin/.gradle/caches/8.13/transforms/b363592e9e6c772f1f2f2c4926dc753c/transformed/core-1.13.0/AndroidManifest.xml:23:9-81
+13        android:protectionLevel="signature" />
+13-->[androidx.core:core:1.13.0] /home/alamin/.gradle/caches/8.13/transforms/b363592e9e6c772f1f2f2c4926dc753c/transformed/core-1.13.0/AndroidManifest.xml:24:9-44
+14
+15    <uses-permission android:name="com.alamin5g.pdf.sample.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+15-->[androidx.core:core:1.13.0] /home/alamin/.gradle/caches/8.13/transforms/b363592e9e6c772f1f2f2c4926dc753c/transformed/core-1.13.0/AndroidManifest.xml:26:5-97
+15-->[androidx.core:core:1.13.0] /home/alamin/.gradle/caches/8.13/transforms/b363592e9e6c772f1f2f2c4926dc753c/transformed/core-1.13.0/AndroidManifest.xml:26:22-94
+16
+17    <application
+17-->/home/alamin/AndroidStudioProjects/Alamin5G-PDF-Viewer/app/src/main/AndroidManifest.xml:5:5-23:19
+18        android:allowBackup="true"
+18-->/home/alamin/AndroidStudioProjects/Alamin5G-PDF-Viewer/app/src/main/AndroidManifest.xml:6:9-35
+19        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+19-->[androidx.core:core:1.13.0] /home/alamin/.gradle/caches/8.13/transforms/b363592e9e6c772f1f2f2c4926dc753c/transformed/core-1.13.0/AndroidManifest.xml:28:18-86
+20        android:dataExtractionRules="@xml/data_extraction_rules"
+20-->/home/alamin/AndroidStudioProjects/Alamin5G-PDF-Viewer/app/src/main/AndroidManifest.xml:7:9-65
+21        android:debuggable="true"
+22        android:extractNativeLibs="false"
+23        android:fullBackupContent="@xml/backup_rules"
+23-->/home/alamin/AndroidStudioProjects/Alamin5G-PDF-Viewer/app/src/main/AndroidManifest.xml:8:9-54
+24        android:icon="@mipmap/ic_launcher"
+24-->/home/alamin/AndroidStudioProjects/Alamin5G-PDF-Viewer/app/src/main/AndroidManifest.xml:9:9-43
+25        android:label="@string/app_name"
+25-->/home/alamin/AndroidStudioProjects/Alamin5G-PDF-Viewer/app/src/main/AndroidManifest.xml:10:9-41
+26        android:roundIcon="@mipmap/ic_launcher_round"
+26-->/home/alamin/AndroidStudioProjects/Alamin5G-PDF-Viewer/app/src/main/AndroidManifest.xml:11:9-54
+27        android:supportsRtl="true"
+27-->/home/alamin/AndroidStudioProjects/Alamin5G-PDF-Viewer/app/src/main/AndroidManifest.xml:12:9-35
+28        android:theme="@style/Theme.Alamin5GPDFViewer" >
+28-->/home/alamin/AndroidStudioProjects/Alamin5G-PDF-Viewer/app/src/main/AndroidManifest.xml:13:9-55
+29        <activity
+29-->/home/alamin/AndroidStudioProjects/Alamin5G-PDF-Viewer/app/src/main/AndroidManifest.xml:14:9-22:20
+30            android:name="com.alamin5g.pdf.sample.MainActivity"
+30-->/home/alamin/AndroidStudioProjects/Alamin5G-PDF-Viewer/app/src/main/AndroidManifest.xml:15:13-41
+31            android:exported="true" >
+31-->/home/alamin/AndroidStudioProjects/Alamin5G-PDF-Viewer/app/src/main/AndroidManifest.xml:16:13-36
+32            <intent-filter>
+32-->/home/alamin/AndroidStudioProjects/Alamin5G-PDF-Viewer/app/src/main/AndroidManifest.xml:17:13-21:29
+33                <action android:name="android.intent.action.MAIN" />
+33-->/home/alamin/AndroidStudioProjects/Alamin5G-PDF-Viewer/app/src/main/AndroidManifest.xml:18:17-69
+33-->/home/alamin/AndroidStudioProjects/Alamin5G-PDF-Viewer/app/src/main/AndroidManifest.xml:18:25-66
+34
+35                <category android:name="android.intent.category.LAUNCHER" />
+35-->/home/alamin/AndroidStudioProjects/Alamin5G-PDF-Viewer/app/src/main/AndroidManifest.xml:20:17-77
+35-->/home/alamin/AndroidStudioProjects/Alamin5G-PDF-Viewer/app/src/main/AndroidManifest.xml:20:27-74
+36            </intent-filter>
+37        </activity>
+38
+39        <provider
+39-->[androidx.emoji2:emoji2:1.3.0] /home/alamin/.gradle/caches/8.13/transforms/e00a0eeebf47d0da2191800354b29c90/transformed/emoji2-1.3.0/AndroidManifest.xml:24:9-32:20
+40            android:name="androidx.startup.InitializationProvider"
+40-->[androidx.emoji2:emoji2:1.3.0] /home/alamin/.gradle/caches/8.13/transforms/e00a0eeebf47d0da2191800354b29c90/transformed/emoji2-1.3.0/AndroidManifest.xml:25:13-67
+41            android:authorities="com.alamin5g.pdf.sample.androidx-startup"
+41-->[androidx.emoji2:emoji2:1.3.0] /home/alamin/.gradle/caches/8.13/transforms/e00a0eeebf47d0da2191800354b29c90/transformed/emoji2-1.3.0/AndroidManifest.xml:26:13-68
+42            android:exported="false" >
+42-->[androidx.emoji2:emoji2:1.3.0] /home/alamin/.gradle/caches/8.13/transforms/e00a0eeebf47d0da2191800354b29c90/transformed/emoji2-1.3.0/AndroidManifest.xml:27:13-37
+43            <meta-data
+43-->[androidx.emoji2:emoji2:1.3.0] /home/alamin/.gradle/caches/8.13/transforms/e00a0eeebf47d0da2191800354b29c90/transformed/emoji2-1.3.0/AndroidManifest.xml:29:13-31:52
+44                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+44-->[androidx.emoji2:emoji2:1.3.0] /home/alamin/.gradle/caches/8.13/transforms/e00a0eeebf47d0da2191800354b29c90/transformed/emoji2-1.3.0/AndroidManifest.xml:30:17-75
+45                android:value="androidx.startup" />
+45-->[androidx.emoji2:emoji2:1.3.0] /home/alamin/.gradle/caches/8.13/transforms/e00a0eeebf47d0da2191800354b29c90/transformed/emoji2-1.3.0/AndroidManifest.xml:31:17-49
+46            <meta-data
+46-->[androidx.lifecycle:lifecycle-process:2.6.2] /home/alamin/.gradle/caches/8.13/transforms/4860e7b772a3f23acac7ef9bb0260426/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:29:13-31:52
+47                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+47-->[androidx.lifecycle:lifecycle-process:2.6.2] /home/alamin/.gradle/caches/8.13/transforms/4860e7b772a3f23acac7ef9bb0260426/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:30:17-78
+48                android:value="androidx.startup" />
+48-->[androidx.lifecycle:lifecycle-process:2.6.2] /home/alamin/.gradle/caches/8.13/transforms/4860e7b772a3f23acac7ef9bb0260426/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:31:17-49
+49            <meta-data
+49-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/alamin/.gradle/caches/8.13/transforms/9636b4554354c9a481190ab64faee742/transformed/profileinstaller-1.4.0/AndroidManifest.xml:29:13-31:52
+50                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+50-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/alamin/.gradle/caches/8.13/transforms/9636b4554354c9a481190ab64faee742/transformed/profileinstaller-1.4.0/AndroidManifest.xml:30:17-85
+51                android:value="androidx.startup" />
+51-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/alamin/.gradle/caches/8.13/transforms/9636b4554354c9a481190ab64faee742/transformed/profileinstaller-1.4.0/AndroidManifest.xml:31:17-49
+52        </provider>
+53
+54        <receiver
+54-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/alamin/.gradle/caches/8.13/transforms/9636b4554354c9a481190ab64faee742/transformed/profileinstaller-1.4.0/AndroidManifest.xml:34:9-52:20
+55            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+55-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/alamin/.gradle/caches/8.13/transforms/9636b4554354c9a481190ab64faee742/transformed/profileinstaller-1.4.0/AndroidManifest.xml:35:13-76
+56            android:directBootAware="false"
+56-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/alamin/.gradle/caches/8.13/transforms/9636b4554354c9a481190ab64faee742/transformed/profileinstaller-1.4.0/AndroidManifest.xml:36:13-44
+57            android:enabled="true"
+57-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/alamin/.gradle/caches/8.13/transforms/9636b4554354c9a481190ab64faee742/transformed/profileinstaller-1.4.0/AndroidManifest.xml:37:13-35
+58            android:exported="true"
+58-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/alamin/.gradle/caches/8.13/transforms/9636b4554354c9a481190ab64faee742/transformed/profileinstaller-1.4.0/AndroidManifest.xml:38:13-36
+59            android:permission="android.permission.DUMP" >
+59-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/alamin/.gradle/caches/8.13/transforms/9636b4554354c9a481190ab64faee742/transformed/profileinstaller-1.4.0/AndroidManifest.xml:39:13-57
+60            <intent-filter>
+60-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/alamin/.gradle/caches/8.13/transforms/9636b4554354c9a481190ab64faee742/transformed/profileinstaller-1.4.0/AndroidManifest.xml:40:13-42:29
+61                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+61-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/alamin/.gradle/caches/8.13/transforms/9636b4554354c9a481190ab64faee742/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:17-91
+61-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/alamin/.gradle/caches/8.13/transforms/9636b4554354c9a481190ab64faee742/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:25-88
+62            </intent-filter>
+63            <intent-filter>
+63-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/alamin/.gradle/caches/8.13/transforms/9636b4554354c9a481190ab64faee742/transformed/profileinstaller-1.4.0/AndroidManifest.xml:43:13-45:29
+64                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+64-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/alamin/.gradle/caches/8.13/transforms/9636b4554354c9a481190ab64faee742/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:17-85
+64-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/alamin/.gradle/caches/8.13/transforms/9636b4554354c9a481190ab64faee742/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:25-82
+65            </intent-filter>
+66            <intent-filter>
+66-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/alamin/.gradle/caches/8.13/transforms/9636b4554354c9a481190ab64faee742/transformed/profileinstaller-1.4.0/AndroidManifest.xml:46:13-48:29
+67                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+67-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/alamin/.gradle/caches/8.13/transforms/9636b4554354c9a481190ab64faee742/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:17-88
+67-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/alamin/.gradle/caches/8.13/transforms/9636b4554354c9a481190ab64faee742/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:25-85
+68            </intent-filter>
+69            <intent-filter>
+69-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/alamin/.gradle/caches/8.13/transforms/9636b4554354c9a481190ab64faee742/transformed/profileinstaller-1.4.0/AndroidManifest.xml:49:13-51:29
+70                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+70-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/alamin/.gradle/caches/8.13/transforms/9636b4554354c9a481190ab64faee742/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:17-95
+70-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/alamin/.gradle/caches/8.13/transforms/9636b4554354c9a481190ab64faee742/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:25-92
+71            </intent-filter>
+72        </receiver>
+73    </application>
+74
+75</manifest>
