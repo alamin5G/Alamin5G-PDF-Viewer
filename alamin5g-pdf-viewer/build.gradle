@@ -5,11 +5,11 @@ plugins {
 
 android {
     namespace 'com.alamin5g.pdf.viewer'
-    compileSdk 36
+    compileSdk 34
 
     defaultConfig {
         minSdk 24
-        targetSdk 36
+        targetSdk 34
         versionCode 3
         versionName "1.0.1"
 
@@ -36,8 +36,8 @@ android {
     }
     
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
     }
     
     // 16KB Page Size Compatibility Configuration
