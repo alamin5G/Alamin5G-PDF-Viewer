@@ -1,0 +1,117 @@
+plugins {
+    id 'com.android.library'
+    id 'maven-publish'
+}
+
+android {
+    namespace 'com.alamin5g.pdf.viewer'
+    compileSdk 34
+
+    defaultConfig {
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0-16kb"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        
+        // 16KB Page Size Compatibility
+        ndk {
+            version "28.0.0"
+        }
+        
+        externalNativeBuild {
+            cmake {
+                arguments "-DANDROID_PAGE_SIZE_AGNOSTIC=ON"
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            shrinkResources false
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    
+    // 16KB Page Size Compatibility Configuration
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+        // Exclude problematic libraries that don't support 16KB alignment
+        excludes += [
+            '**/libc++_shared.so',
+            '**/libjniPdfium.so',
+            '**/libmodft2.so',
+            '**/libmodpdfium.so',
+            '**/libmodpng.so'
+        ]
+    }
+    
+    publishing {
+        singleVariant('release') {
+            withSourcesJar()
+            withJavadocJar()
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.10.0'
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+
+    // Use Android's native PdfRenderer for 16KB compatibility
+    implementation 'androidx.core:core:1.12.0'
+    
+    // Alternative: Use a 16KB-compatible PDF library
+    // implementation 'com.github.barteksc:pdfium-android:1.9.0'
+}
+
+publishing {
+    publications {
+        release(MavenPublication) {
+            from components.release
+            
+            groupId = 'com.github.alamin5g'
+            artifactId = 'Alamin5G-PDF-Viewer'
+            version = '1.0.0'
+            
+            pom {
+                name = 'Alamin5G PDF Viewer'
+                description = '16KB-compatible Android PDF library with native PdfRenderer support'
+                url = 'https://github.com/alamin5g/Alamin5G-PDF-Viewer'
+                
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+                
+                developers {
+                    developer {
+                        id = 'alamin5g'
+                        name = 'Alamin5G'
+                        email = 'your-email@example.com'
+                    }
+                }
+                
+                scm {
+                    connection = 'scm:git:git://github.com/alamin5g/Alamin5G-PDF-Viewer.git'
+                    developerConnection = 'scm:git:ssh://github.com:alamin5g/Alamin5G-PDF-Viewer.git'
+                    url = 'https://github.com/alamin5g/Alamin5G-PDF-Viewer/tree/main'
+                }
+            }
+        }
+    }
+}

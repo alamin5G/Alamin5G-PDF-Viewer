@@ -1,0 +1,11 @@
+[versions]
+
+constraintlayout = "2.1.4"
+
+[libraries]
+
+constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
+
+[plugins]
+
+
