@@ -36,8 +36,8 @@ android {
     }
     
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
     }
     
     // 16KB Page Size Compatibility Configuration
@@ -55,7 +55,6 @@ android {
         ]
     }
     
-// Publishing configuration removed for local testing
 }
 
 dependencies {
@@ -67,9 +66,17 @@ dependencies {
 
     // Use Android's native PdfRenderer for 16KB compatibility
     implementation 'androidx.core:core:1.12.0'
-    
-    // Alternative: Use a 16KB-compatible PDF library
-    // implementation 'com.github.barteksc:pdfium-android:1.9.0'
 }
 
-// Publishing configuration removed for local testing
+// Maven publishing for JitPack
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId = 'com.github.alamin5G'
+            artifactId = 'Alamin5G-PDF-Viewer'
+            version = '1.0.1'
+            
+            artifact("$buildDir/outputs/aar/alamin5g-pdf-viewer-release.aar")
+        }
+    }
+}

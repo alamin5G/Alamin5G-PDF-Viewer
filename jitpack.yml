@@ -1,0 +1,9 @@
+jdk:
+  - openjdk11
+
+before_install:
+  - ./gradlew clean
+
+build:
+  - ./gradlew :alamin5g-pdf-viewer:assembleRelease
+  - ./gradlew :alamin5g-pdf-viewer:publishToMavenLocal
