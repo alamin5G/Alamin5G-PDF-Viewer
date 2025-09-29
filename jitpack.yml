@@ -1,0 +1,8 @@
+jdk:
+  - openjdk17
+
+before_install:
+  - ./gradlew clean
+
+install:
+  - ./gradlew :library:publishToMavenLocal
