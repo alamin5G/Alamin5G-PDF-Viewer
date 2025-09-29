@@ -8,4 +8,4 @@ pluginManagement {
 
 rootProject.name = "Alamin5G-PDF-Viewer"
 include ':library'
-project(':library').projectDir = new File('alamin5g-pdf-viewer')
+project(':library').projectDir = new File('library')
