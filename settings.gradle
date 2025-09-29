@@ -5,15 +5,7 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
 
 rootProject.name = "Alamin5G-PDF-Viewer"
-include ':app'
-include ':alamin5g-pdf-viewer'
-project(':alamin5g-pdf-viewer').projectDir = new File('alamin5g-pdf-viewer')
+include ':library'
+project(':library').projectDir = new File('alamin5g-pdf-viewer')
