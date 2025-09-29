@@ -1,6 +1,5 @@
 plugins {
     id 'com.android.library'
-    id 'maven-publish'
 }
 
 android {
@@ -68,15 +67,4 @@ dependencies {
     implementation 'androidx.core:core:1.12.0'
 }
 
-// Maven publishing for JitPack
-publishing {
-    publications {
-        maven(MavenPublication) {
-            groupId = 'com.github.alamin5G'
-            artifactId = 'Alamin5G-PDF-Viewer'
-            version = '1.0.1'
-            
-            artifact("$buildDir/outputs/aar/alamin5g-pdf-viewer-release.aar")
-        }
-    }
-}
+// JitPack will handle publishing automatically
