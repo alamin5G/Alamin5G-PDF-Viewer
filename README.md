@@ -58,7 +58,7 @@ Include the library in your app-level `build.gradle`:
 
 ```gradle
 dependencies {
-    implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.4'
+    implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.5'
 }
 ```
 
