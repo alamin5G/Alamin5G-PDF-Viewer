@@ -10,8 +10,8 @@ android {
     defaultConfig {
         minSdk 24
         targetSdk 34
-        versionCode 8
-        versionName "1.0.6"
+        versionCode 9
+        versionName "1.0.7"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         
@@ -69,14 +69,17 @@ dependencies {
 }
 
 // Publishing configuration for JitPack
-publishing {
-    publications {
-        maven(MavenPublication) {
-            groupId = 'com.github.alamin5g'
-            artifactId = 'Alamin5G-PDF-Viewer'
-            version = '1.0.6'
-            
-            artifact("$buildDir/outputs/aar/library-release.aar")
+afterEvaluate {
+    publishing {
+        publications {
+            maven(MavenPublication) {
+                groupId = 'com.github.alamin5g'
+                artifactId = 'Alamin5G-PDF-Viewer'
+                version = '1.0.7'
+                
+                // Add the AAR artifact after it's built
+                artifact bundleReleaseAar
+            }
         }
     }
 }
