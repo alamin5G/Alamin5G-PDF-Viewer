@@ -72,7 +72,7 @@ Include the library in your app-level `build.gradle`:
 
 ```gradle
 dependencies {
-    implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.9'
+    implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.10'
 }
 ```
 
@@ -382,10 +382,36 @@ File pdfFile = new File("/path/to/document.pdf");
 pdfView.fromFile(pdfFile).load();
 ```
 
-### Load from URI
+### Load from URI (Local Content)
 ```java
 Uri pdfUri = Uri.parse("content://path/to/document.pdf");
 pdfView.fromUri(pdfUri).load();
+```
+
+### 🆕 Load from URL (Remote Server) - NEW in v1.0.10!
+```java
+// Load from HTTP/HTTPS URL with download progress
+pdfView.fromUrl("https://example.com/document.pdf")
+    .onDownloadProgress(new OnDownloadProgressListener() {
+        @Override
+        public void onDownloadProgress(long bytesDownloaded, long totalBytes, int progress) {
+            // Update progress bar or show download status
+            if (progress >= 0) {
+                Log.d("PDF", "Download progress: " + progress + "%");
+            } else {
+                Log.d("PDF", "Downloaded: " + (bytesDownloaded / 1024) + " KB");
+            }
+        }
+    })
+    .onLoad(nbPages -> {
+        // PDF downloaded and loaded successfully
+        Toast.makeText(this, "PDF loaded: " + nbPages + " pages", Toast.LENGTH_SHORT).show();
+    })
+    .onError(error -> {
+        // Handle download or loading errors
+        Toast.makeText(this, "Error: " + error.getMessage(), Toast.LENGTH_LONG).show();
+    });
+    // Note: fromUrl() automatically calls load() after download
 ```
 
 ### Load from Byte Array
@@ -520,6 +546,111 @@ View customScrollHandle = new MyCustomScrollView(context);
 
 // Get current cache size
 int currentCacheSize = pdfView.getCacheSize();
+```
+
+## 🌐 Remote PDF Loading (NEW in v1.0.10!)
+
+### Supported URL Sources
+- ✅ **HTTP/HTTPS URLs**: Direct PDF file links
+- ✅ **Google Drive**: Public PDF files (use direct download links)
+- ✅ **Dropbox**: Public PDF files (use direct download links)
+- ✅ **AWS S3**: Public PDF files
+- ✅ **Any Web Server**: That serves PDF files
+
+### Google Drive Integration
+```java
+// For Google Drive, use the direct download link format:
+// https://drive.google.com/uc?export=download&id=FILE_ID
+
+String googleDriveFileId = "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms";
+String googleDriveUrl = "https://drive.google.com/uc?export=download&id=" + googleDriveFileId;
+
+pdfView.fromUrl(googleDriveUrl)
+    .onDownloadProgress((bytesDownloaded, totalBytes, progress) -> {
+        // Show download progress
+        updateProgressBar(progress);
+    })
+    .onLoad(nbPages -> {
+        // PDF loaded from Google Drive
+        showSuccess("Google Drive PDF loaded: " + nbPages + " pages");
+    })
+    .onError(error -> {
+        // Handle errors (network, file not found, etc.)
+        showError("Failed to load from Google Drive: " + error.getMessage());
+    });
+```
+
+### Dropbox Integration
+```java
+// For Dropbox, replace 'www.dropbox.com' with 'dl.dropboxusercontent.com'
+// and remove '?dl=0' parameter
+
+String dropboxUrl = "https://dl.dropboxusercontent.com/s/abc123/document.pdf";
+
+pdfView.fromUrl(dropboxUrl)
+    .onDownloadProgress((bytesDownloaded, totalBytes, progress) -> {
+        Log.d("PDF", "Dropbox download: " + progress + "%");
+    })
+    .load(); // fromUrl() automatically calls load()
+```
+
+### AWS S3 Integration
+```java
+// For AWS S3, use the direct object URL
+String s3Url = "https://your-bucket.s3.amazonaws.com/path/to/document.pdf";
+
+pdfView.fromUrl(s3Url)
+    .onDownloadProgress((bytesDownloaded, totalBytes, progress) -> {
+        // Update UI with download progress
+        runOnUiThread(() -> {
+            progressBar.setProgress(progress);
+            statusText.setText("Downloading: " + progress + "%");
+        });
+    })
+    .onLoad(nbPages -> {
+        // Hide progress bar and show PDF
+        progressBar.setVisibility(View.GONE);
+        Toast.makeText(this, "S3 PDF loaded successfully", Toast.LENGTH_SHORT).show();
+    })
+    .onError(error -> {
+        progressBar.setVisibility(View.GONE);
+        showErrorDialog("S3 Download Failed", error.getMessage());
+    });
+```
+
+### Network Requirements
+Add these permissions to your app's `AndroidManifest.xml`:
+```xml
+<uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+```
+
+For HTTP URLs (not HTTPS), also add:
+```xml
+<application
+    android:usesCleartextTraffic="true">
+    <!-- Your app content -->
+</application>
+```
+
+### Error Handling for Remote Loading
+```java
+pdfView.fromUrl("https://example.com/document.pdf")
+    .onError(error -> {
+        if (error instanceof java.net.UnknownHostException) {
+            showError("No internet connection");
+        } else if (error instanceof java.net.SocketTimeoutException) {
+            showError("Download timeout - file too large or slow connection");
+        } else if (error instanceof java.io.FileNotFoundException) {
+            showError("PDF file not found at URL");
+        } else if (error.getMessage().contains("HTTP error code: 403")) {
+            showError("Access denied - check file permissions");
+        } else if (error.getMessage().contains("HTTP error code: 404")) {
+            showError("PDF file not found");
+        } else {
+            showError("Download failed: " + error.getMessage());
+        }
+    });
 ```
 
 ## 🎮 Programmatic Control

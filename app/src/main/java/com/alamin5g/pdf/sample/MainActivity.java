@@ -15,6 +15,7 @@ import androidx.core.view.WindowInsetsCompat;
 import com.alamin5g.pdf.PDFView;
 import com.alamin5g.pdf.listener.OnLoadCompleteListener;
 import com.alamin5g.pdf.listener.OnPageChangeListener;
+import com.alamin5g.pdf.listener.OnDownloadProgressListener;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -56,7 +57,13 @@ public class MainActivity extends AppCompatActivity {
         btnLoadPdf.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                loadPdf();
+                Log.d(TAG, "Load PDF button clicked");
+                // Demonstrate both asset loading and URL loading
+                if (Math.random() > 0.5) {
+                    loadPdf(); // Load from assets
+                } else {
+                    loadPdfFromUrl(); // Load from URL
+                }
             }
         });
 
@@ -147,6 +154,71 @@ public class MainActivity extends AppCompatActivity {
         btnPrevPage.setEnabled(currentPage > 0);
         btnNextPage.setText("Next (" + (currentPage + 1) + "/" + totalPages + ")");
         btnPrevPage.setText("Prev (" + (currentPage + 1) + "/" + totalPages + ")");
+    }
+
+    private void loadPdfFromUrl() {
+        // Example URLs for testing (you can replace with your own)
+        String[] testUrls = {
+            "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+            "https://www.adobe.com/support/products/enterprise/knowledgecenter/media/c4611_sample_explain.pdf",
+            "https://file-examples.com/storage/fe68c8c7c66b2b9c7e0b6e4/2017/10/file-sample_150kB.pdf"
+        };
+        
+        String url = testUrls[(int) (Math.random() * testUrls.length)];
+        Log.d(TAG, "Loading PDF from URL: " + url);
+        
+        Toast.makeText(this, "Downloading PDF from server...", Toast.LENGTH_SHORT).show();
+        
+        pdfView.fromUrl(url)
+            .enableSwipe(true)
+            .swipeHorizontal(false)
+            .enableDoubletap(true)
+            .enableAntialiasing(true)
+            .defaultPage(0)
+            // NEW METHODS DEMONSTRATION
+            .enableAnnotationRendering(true)
+            .scrollHandle(null)
+            .spacing(10)
+            .autoSpacing(false)
+            .pageFitPolicy(PDFView.FitPolicy.WIDTH)
+            .fitEachPage(false)
+            .setCacheSize(8)
+            .onDownloadProgress(new OnDownloadProgressListener() {
+                @Override
+                public void onDownloadProgress(long bytesDownloaded, long totalBytes, int progress) {
+                    String progressText = progress >= 0 ? 
+                        "Downloading: " + progress + "%" : 
+                        "Downloading: " + (bytesDownloaded / 1024) + " KB";
+                    
+                    runOnUiThread(() -> {
+                        Toast.makeText(MainActivity.this, progressText, Toast.LENGTH_SHORT).show();
+                        Log.d(TAG, "Download progress: " + progressText);
+                    });
+                }
+            })
+            .onLoad(new OnLoadCompleteListener() {
+                @Override
+                public void loadComplete(int nbPages) {
+                    totalPages = nbPages;
+                    currentPage = 0;
+                    updateButtonStates();
+                    Log.d(TAG, "PDF downloaded and loaded successfully with " + nbPages + " pages.");
+                    Toast.makeText(MainActivity.this, "PDF downloaded: " + nbPages + " pages", Toast.LENGTH_SHORT).show();
+                }
+            })
+            .onPageChange(new OnPageChangeListener() {
+                @Override
+                public void onPageChanged(int page, int pageCount) {
+                    currentPage = page;
+                    updateButtonStates();
+                    Log.d(TAG, "Page changed to: " + page + " of " + pageCount);
+                }
+            })
+            .onError(error -> {
+                Log.e(TAG, "PDF download/loading error: " + error.getMessage());
+                Toast.makeText(MainActivity.this, "Error downloading PDF: " + error.getMessage(), Toast.LENGTH_LONG).show();
+            });
+            // Note: fromUrl() automatically calls load() after download
     }
 
     @Override
