@@ -87,7 +87,8 @@ public class PDFView extends FrameLayout {
     
     // Caching
     private android.util.LruCache<Integer, Bitmap> pageCache;
-    private static final int CACHE_SIZE = 10; // Cache up to 10 pages
+    private static final int DEFAULT_CACHE_SIZE = 10; // Default cache size
+    private int cacheSize = DEFAULT_CACHE_SIZE; // Configurable cache size
     
     // Listeners
     private OnLoadCompleteListener onLoadCompleteListener;
@@ -133,7 +134,7 @@ public class PDFView extends FrameLayout {
         executorService = Executors.newSingleThreadExecutor();
         
         // Initialize page cache
-        pageCache = new android.util.LruCache<Integer, Bitmap>(CACHE_SIZE) {
+        pageCache = new android.util.LruCache<Integer, Bitmap>(cacheSize) {
             @Override
             protected int sizeOf(Integer key, Bitmap bitmap) {
                 return bitmap.getByteCount() / 1024; // Size in KB
@@ -188,16 +189,26 @@ public class PDFView extends FrameLayout {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         
-        if (currentBitmap != null) {
-            canvas.save();
-            canvas.concat(matrix);
-            
-            // Apply spacing if configured
-            float x = spacing;
-            float y = spacing;
-            
-            canvas.drawBitmap(currentBitmap, x, y, paint);
-            canvas.restore();
+        // Critical fix: Check if bitmap is not null AND not recycled
+        if (currentBitmap != null && !currentBitmap.isRecycled()) {
+            try {
+                canvas.save();
+                canvas.concat(matrix);
+                
+                // Apply spacing if configured
+                float x = spacing;
+                float y = spacing;
+                
+                canvas.drawBitmap(currentBitmap, x, y, paint);
+                canvas.restore();
+            } catch (Exception e) {
+                Log.e(TAG, "Error drawing bitmap: " + e.getMessage(), e);
+                // Clear the problematic bitmap
+                if (currentBitmap != null && currentBitmap.isRecycled()) {
+                    currentBitmap = null;
+                }
+                canvas.restore(); // Ensure canvas state is restored
+            }
         }
     }
     
@@ -236,6 +247,28 @@ public class PDFView extends FrameLayout {
     
     public PDFView spacing(int spacing) {
         this.spacing = spacing;
+        return this;
+    }
+    
+    public PDFView setCacheSize(int cacheSize) {
+        this.cacheSize = Math.max(1, cacheSize); // Ensure minimum cache size of 1
+        // Reinitialize cache with new size
+        if (pageCache != null) {
+            pageCache.evictAll();
+        }
+        pageCache = new android.util.LruCache<Integer, Bitmap>(this.cacheSize) {
+            @Override
+            protected int sizeOf(Integer key, Bitmap bitmap) {
+                return bitmap.getByteCount() / 1024; // Size in KB
+            }
+            
+            @Override
+            protected void entryRemoved(boolean evicted, Integer key, Bitmap oldValue, Bitmap newValue) {
+                if (evicted && oldValue != null && !oldValue.isRecycled()) {
+                    oldValue.recycle();
+                }
+            }
+        };
         return this;
     }
     
@@ -542,10 +575,13 @@ public class PDFView extends FrameLayout {
     
     // Utility methods
     public void recycle() {
-        if (currentBitmap != null) {
+        // Safely recycle current bitmap
+        if (currentBitmap != null && !currentBitmap.isRecycled()) {
             currentBitmap.recycle();
-            currentBitmap = null;
         }
+        currentBitmap = null;
+        
+        // Clear and recycle cached bitmaps
         if (pageCache != null) {
             pageCache.evictAll();
             pageCache = null;
@@ -644,13 +680,17 @@ public class PDFView extends FrameLayout {
                 
                 // Update UI on main thread
                 post(() -> {
-                    if (currentBitmap != null) {
-                        currentBitmap.recycle();
-                    }
+                    // Safely replace current bitmap
+                    Bitmap oldBitmap = currentBitmap;
                     currentBitmap = bitmap;
                     
                     // Cache the bitmap
                     pageCache.put(pageIndex, bitmap);
+                    
+                    // Recycle old bitmap after setting new one
+                    if (oldBitmap != null && !oldBitmap.isRecycled() && oldBitmap != bitmap) {
+                        oldBitmap.recycle();
+                    }
                     
                     invalidate();
                     Log.d(TAG, "Successfully rendered page: " + pageIndex);
@@ -777,6 +817,10 @@ public class PDFView extends FrameLayout {
     
     public int getSpacing() {
         return spacing;
+    }
+    
+    public int getCacheSize() {
+        return cacheSize;
     }
     
     public boolean isAutoSpacing() {

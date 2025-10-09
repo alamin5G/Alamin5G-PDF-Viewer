@@ -111,6 +111,7 @@ public class MainActivity extends AppCompatActivity {
                 .autoSpacing(false)               // Don't use dynamic spacing
                 .pageFitPolicy(PDFView.FitPolicy.WIDTH)  // Fit pages to width
                 .fitEachPage(false)               // Don't fit each page individually
+                .setCacheSize(8)                  // Cache 8 pages (NEW in v1.0.9!)
                 .onLoad(new OnLoadCompleteListener() {
                     @Override
                     public void loadComplete(int nbPages) {

@@ -72,7 +72,7 @@ Include the library in your app-level `build.gradle`:
 
 ```gradle
 dependencies {
-    implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.8'
+    implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.9'
 }
 ```
 
@@ -433,7 +433,7 @@ pdfView.fromAsset("sample.pdf")
     .setMaxZoom(5.0f)                          // Maximum zoom level
     
     // Performance
-    .setCacheSize(10)                           // Number of pages to cache
+    .setCacheSize(10)                           // Number of pages to cache (NEW!)
     .enableHardwareAcceleration(true)          // Hardware acceleration
     
     // Listeners
@@ -505,6 +505,21 @@ View customScrollHandle = new MyCustomScrollView(context);
 
 // Remove scroll handle
 .scrollHandle(null)
+```
+
+#### Cache Management (NEW in v1.0.9!)
+```java
+// Set cache size (number of pages to keep in memory)
+.setCacheSize(15)                      // Cache 15 pages (default: 10)
+
+// For memory-constrained devices
+.setCacheSize(5)                       // Smaller cache
+
+// For high-end devices
+.setCacheSize(20)                      // Larger cache
+
+// Get current cache size
+int currentCacheSize = pdfView.getCacheSize();
 ```
 
 ## 🎮 Programmatic Control
@@ -604,6 +619,41 @@ No special permissions required! The library uses Android's native `PdfRenderer`
 
 ### ProGuard/R8
 No additional ProGuard rules needed. The library is fully compatible with code obfuscation.
+
+## 🚨 Critical Bug Fixes in v1.0.9
+
+### ⚠️ IMPORTANT: Update from v1.0.7/v1.0.8 Immediately!
+
+**Version 1.0.9 fixes critical crashes:**
+
+#### Fixed: Recycled Bitmap Crash
+```
+FATAL EXCEPTION: Canvas: trying to use a recycled bitmap
+at com.alamin5g.pdf.PDFView.onDraw(PDFView.java:185)
+```
+
+**Root Cause**: Bitmap was being recycled while still in use by the drawing thread.
+
+**Fix Applied**:
+- Added `!bitmap.isRecycled()` checks in `onDraw()`
+- Improved bitmap lifecycle management
+- Safe bitmap replacement in rendering thread
+- Enhanced error handling with try-catch blocks
+
+#### Added: Missing setCacheSize() Method
+```java
+// This method was missing in v1.0.7, causing crashes for users
+pdfView.setCacheSize(10);  // Now available!
+```
+
+**Migration from v1.0.7/v1.0.8**:
+```gradle
+// OLD (has critical bugs)
+implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.7'
+
+// NEW (stable and safe)
+implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.9'
+```
 
 ## 🔧 Troubleshooting
 
