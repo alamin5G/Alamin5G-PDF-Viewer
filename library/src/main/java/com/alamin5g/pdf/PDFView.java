@@ -21,12 +21,15 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import com.alamin5g.pdf.listener.OnLoadCompleteListener;
 import com.alamin5g.pdf.listener.OnPageChangeListener;
 import com.alamin5g.pdf.listener.OnErrorListener;
+import com.alamin5g.pdf.listener.OnDownloadProgressListener;
 
 /**
  * Complete PDF View using Android's native PdfRenderer for 16KB compatibility
@@ -93,6 +96,7 @@ public class PDFView extends FrameLayout {
     private OnLoadCompleteListener onLoadCompleteListener;
     private OnPageChangeListener onPageChangeListener;
     private OnErrorListener onErrorListener;
+    private OnDownloadProgressListener onDownloadProgressListener;
     
     // Page rendering (pages variable already declared above)
     
@@ -338,6 +342,11 @@ public class PDFView extends FrameLayout {
         return this;
     }
     
+    public PDFView onDownloadProgress(OnDownloadProgressListener onDownloadProgressListener) {
+        this.onDownloadProgressListener = onDownloadProgressListener;
+        return this;
+    }
+    
     // Loading methods
     public PDFView fromAsset(String assetName) {
         try {
@@ -489,6 +498,83 @@ public class PDFView extends FrameLayout {
                 onErrorListener.onError(e);
             }
         }
+        return this;
+    }
+    
+    public PDFView fromUrl(String url) {
+        if (url == null || url.trim().isEmpty()) {
+            if (onErrorListener != null) {
+                onErrorListener.onError(new IllegalArgumentException("URL cannot be null or empty"));
+            }
+            return this;
+        }
+        
+        // Download PDF from URL in background thread
+        executorService.execute(() -> {
+            try {
+                Log.d(TAG, "Downloading PDF from URL: " + url);
+                
+                URL pdfUrl = new URL(url);
+                HttpURLConnection connection = (HttpURLConnection) pdfUrl.openConnection();
+                connection.setRequestMethod("GET");
+                connection.setConnectTimeout(30000); // 30 seconds
+                connection.setReadTimeout(60000);    // 60 seconds
+                
+                // Set user agent to avoid blocking
+                connection.setRequestProperty("User-Agent", "Alamin5G-PDF-Viewer/1.0.10");
+                
+                int responseCode = connection.getResponseCode();
+                if (responseCode != HttpURLConnection.HTTP_OK) {
+                    throw new IOException("HTTP error code: " + responseCode);
+                }
+                
+                // Get file size for progress tracking
+                long totalBytes = connection.getContentLengthLong();
+                Log.d(TAG, "PDF file size: " + totalBytes + " bytes");
+                
+                InputStream inputStream = connection.getInputStream();
+                
+                // Create temporary file
+                File tempFile = File.createTempFile("pdf_download", ".pdf", getContext().getCacheDir());
+                FileOutputStream outputStream = new FileOutputStream(tempFile);
+                
+                // Download with progress tracking
+                byte[] buffer = new byte[8192];
+                long bytesDownloaded = 0;
+                int bytesRead;
+                
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    outputStream.write(buffer, 0, bytesRead);
+                    bytesDownloaded += bytesRead;
+                    
+                    // Report progress
+                    if (onDownloadProgressListener != null) {
+                        final long finalBytesDownloaded = bytesDownloaded;
+                        final long finalTotalBytes = totalBytes;
+                        final int progress = totalBytes > 0 ? (int) ((bytesDownloaded * 100) / totalBytes) : -1;
+                        
+                        post(() -> onDownloadProgressListener.onDownloadProgress(
+                            finalBytesDownloaded, finalTotalBytes, progress));
+                    }
+                }
+                
+                inputStream.close();
+                outputStream.close();
+                connection.disconnect();
+                
+                Log.d(TAG, "PDF downloaded successfully: " + tempFile.getAbsolutePath());
+                
+                // Load the downloaded file on main thread
+                post(() -> fromFile(tempFile).load());
+                
+            } catch (Exception e) {
+                Log.e(TAG, "Error downloading PDF from URL: " + e.getMessage(), e);
+                if (onErrorListener != null) {
+                    post(() -> onErrorListener.onError(e));
+                }
+            }
+        });
+        
         return this;
     }
     
