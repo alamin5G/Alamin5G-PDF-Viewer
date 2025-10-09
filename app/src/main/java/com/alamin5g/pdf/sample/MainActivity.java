@@ -104,6 +104,13 @@ public class MainActivity extends AppCompatActivity {
                 .enableDoubletap(true)
                 .enableAntialiasing(true)
                 .defaultPage(0)
+                // NEW METHODS DEMONSTRATION
+                .enableAnnotationRendering(true)  // Render annotations (comments, forms)
+                .scrollHandle(null)               // No custom scroll handle
+                .spacing(10)                      // 10dp spacing between pages
+                .autoSpacing(false)               // Don't use dynamic spacing
+                .pageFitPolicy(PDFView.FitPolicy.WIDTH)  // Fit pages to width
+                .fitEachPage(false)               // Don't fit each page individually
                 .onLoad(new OnLoadCompleteListener() {
                     @Override
                     public void loadComplete(int nbPages) {

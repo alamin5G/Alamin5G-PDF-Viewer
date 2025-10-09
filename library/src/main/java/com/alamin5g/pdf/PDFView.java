@@ -51,6 +51,15 @@ public class PDFView extends FrameLayout {
     private boolean useBestQuality = true;
     private int spacing = 0;
     private int defaultPage = 0;
+    private int[] pages;
+    private FitPolicy fitPolicy = FitPolicy.WIDTH;
+    
+    // Additional configuration options
+    private boolean enableAnnotationRendering = true;
+    private View scrollHandle = null;
+    private boolean autoSpacing = false; // add dynamic spacing to fit each page
+    private FitPolicy pageFitPolicy = FitPolicy.WIDTH; // mode to fit pages in the view
+    private boolean fitEachPage = false; // fit each page to the view
     
     // Zoom and pan
     private Matrix matrix;
@@ -182,7 +191,12 @@ public class PDFView extends FrameLayout {
         if (currentBitmap != null) {
             canvas.save();
             canvas.concat(matrix);
-            canvas.drawBitmap(currentBitmap, 0, 0, paint);
+            
+            // Apply spacing if configured
+            float x = spacing;
+            float y = spacing;
+            
+            canvas.drawBitmap(currentBitmap, x, y, paint);
             canvas.restore();
         }
     }
@@ -237,6 +251,43 @@ public class PDFView extends FrameLayout {
     
     public PDFView pages(int... pages) {
         this.pages = pages;
+        return this;
+    }
+    
+    // Additional configuration methods
+    public PDFView enableAnnotationRendering(boolean enableAnnotationRendering) {
+        this.enableAnnotationRendering = enableAnnotationRendering;
+        return this;
+    }
+    
+    public PDFView scrollHandle(View scrollHandle) {
+        // Remove previous scroll handle if exists
+        if (this.scrollHandle != null && this.scrollHandle.getParent() == this) {
+            removeView(this.scrollHandle);
+        }
+        
+        this.scrollHandle = scrollHandle;
+        
+        // Add new scroll handle if provided
+        if (scrollHandle != null) {
+            addView(scrollHandle);
+        }
+        
+        return this;
+    }
+    
+    public PDFView autoSpacing(boolean autoSpacing) {
+        this.autoSpacing = autoSpacing;
+        return this;
+    }
+    
+    public PDFView pageFitPolicy(FitPolicy pageFitPolicy) {
+        this.pageFitPolicy = pageFitPolicy;
+        return this;
+    }
+    
+    public PDFView fitEachPage(boolean fitEachPage) {
+        this.fitEachPage = fitEachPage;
         return this;
     }
     
@@ -550,7 +601,11 @@ public class PDFView extends FrameLayout {
                 
                 // Calculate bitmap size based on fit policy
                 int width, height;
-                switch (fitPolicy) {
+                
+                // Use pageFitPolicy if fitEachPage is enabled, otherwise use fitPolicy
+                FitPolicy currentFitPolicy = fitEachPage ? pageFitPolicy : fitPolicy;
+                
+                switch (currentFitPolicy) {
                     case WIDTH:
                         width = getWidth();
                         height = (int) (width * (float) page.getHeight() / page.getWidth());
@@ -566,12 +621,23 @@ public class PDFView extends FrameLayout {
                         break;
                 }
                 
+                // Apply spacing if autoSpacing is enabled
+                if (autoSpacing) {
+                    // Reduce size to accommodate spacing
+                    width -= spacing * 2;
+                    height -= spacing * 2;
+                }
+                
                 // Create bitmap with appropriate quality
                 Bitmap.Config config = useBestQuality ? Bitmap.Config.ARGB_8888 : Bitmap.Config.RGB_565;
                 Bitmap bitmap = Bitmap.createBitmap(width, height, config);
                 
                 // Render the page to the bitmap
-                page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
+                // Use RENDER_MODE_FOR_DISPLAY for annotations, RENDER_MODE_FOR_PRINT to exclude them
+                int renderMode = enableAnnotationRendering ? 
+                    PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY : 
+                    PdfRenderer.Page.RENDER_MODE_FOR_PRINT;
+                page.render(bitmap, null, null, renderMode);
                 
                 // Close the page
                 page.close();
@@ -697,6 +763,65 @@ public class PDFView extends FrameLayout {
                 zoomTo(midZoom);
             }
             return true;
+        }
+    }
+    
+    // Getter methods for new configuration options
+    public boolean isAnnotationRenderingEnabled() {
+        return enableAnnotationRendering;
+    }
+    
+    public View getScrollHandle() {
+        return scrollHandle;
+    }
+    
+    public int getSpacing() {
+        return spacing;
+    }
+    
+    public boolean isAutoSpacing() {
+        return autoSpacing;
+    }
+    
+    public FitPolicy getPageFitPolicy() {
+        return pageFitPolicy;
+    }
+    
+    public boolean isFitEachPage() {
+        return fitEachPage;
+    }
+    
+    // Additional utility methods
+    public void setSpacing(int spacing) {
+        this.spacing = spacing;
+        invalidate(); // Redraw with new spacing
+    }
+    
+    public void setAutoSpacing(boolean autoSpacing) {
+        this.autoSpacing = autoSpacing;
+        if (currentPage >= 0) {
+            renderPage(currentPage); // Re-render current page
+        }
+    }
+    
+    public void setPageFitPolicy(FitPolicy pageFitPolicy) {
+        this.pageFitPolicy = pageFitPolicy;
+        if (fitEachPage && currentPage >= 0) {
+            renderPage(currentPage); // Re-render current page
+        }
+    }
+    
+    public void setFitEachPage(boolean fitEachPage) {
+        this.fitEachPage = fitEachPage;
+        if (currentPage >= 0) {
+            renderPage(currentPage); // Re-render current page
+        }
+    }
+    
+    public void setAnnotationRenderingEnabled(boolean enableAnnotationRendering) {
+        this.enableAnnotationRendering = enableAnnotationRendering;
+        if (currentPage >= 0) {
+            renderPage(currentPage); // Re-render current page
         }
     }
     

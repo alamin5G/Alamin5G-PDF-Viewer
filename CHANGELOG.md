@@ -235,3 +235,4 @@ afterEvaluate {
 ---
 
 **🎉 Version 1.0.7 is the first stable, globally available release of Alamin5G PDF Viewer!**
+

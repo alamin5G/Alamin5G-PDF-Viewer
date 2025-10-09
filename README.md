@@ -72,7 +72,7 @@ Include the library in your app-level `build.gradle`:
 
 ```gradle
 dependencies {
-    implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.7'
+    implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.8'
 }
 ```
 
@@ -419,6 +419,14 @@ pdfView.fromAsset("sample.pdf")
     .useBestQuality(true)                       // ARGB_8888 vs RGB_565
     .fitPolicy(PDFView.FitPolicy.WIDTH)         // WIDTH, HEIGHT, or BOTH
     
+    // NEW: Advanced Display Options
+    .enableAnnotationRendering(true)            // Render annotations (comments, forms)
+    .scrollHandle(customScrollView)             // Custom scroll handle view
+    .spacing(10)                                // Spacing between pages in dp
+    .autoSpacing(false)                         // Dynamic spacing to fit pages
+    .pageFitPolicy(PDFView.FitPolicy.WIDTH)     // Individual page fit policy
+    .fitEachPage(false)                         // Fit each page individually
+    
     // Zoom
     .enableZoom(true)                           // Enable zoom functionality
     .setMinZoom(0.5f)                          // Minimum zoom level
@@ -457,6 +465,46 @@ pdfView.fromAsset("sample.pdf")
 
 // Memory optimized (less memory usage)
 .useBestQuality(false)  // Uses RGB_565
+```
+
+### NEW: Advanced Configuration Options
+
+#### Annotation Rendering
+```java
+// Enable rendering of PDF annotations (comments, forms, highlights)
+.enableAnnotationRendering(true)   // Default: true
+
+// Disable annotations for faster rendering
+.enableAnnotationRendering(false)
+```
+
+#### Page Spacing
+```java
+// Add spacing between pages (in dp)
+.spacing(10)                       // 10dp spacing
+
+// Dynamic spacing to fit each page on screen
+.autoSpacing(true)                 // Automatically adjust spacing
+```
+
+#### Individual Page Fitting
+```java
+// Fit each page individually vs scaling relative to largest page
+.fitEachPage(true)                 // Each page fits the view
+.pageFitPolicy(PDFView.FitPolicy.WIDTH)  // How to fit individual pages
+
+// Scale all pages relative to the largest page (default)
+.fitEachPage(false)
+```
+
+#### Custom Scroll Handle
+```java
+// Add a custom scroll handle view
+View customScrollHandle = new MyCustomScrollView(context);
+.scrollHandle(customScrollHandle)
+
+// Remove scroll handle
+.scrollHandle(null)
 ```
 
 ## 🎮 Programmatic Control
