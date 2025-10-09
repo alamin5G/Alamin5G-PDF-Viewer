@@ -76,7 +76,6 @@ public class PDFView extends FrameLayout {
     public enum FitPolicy {
         WIDTH, HEIGHT, BOTH
     }
-    private FitPolicy fitPolicy = FitPolicy.WIDTH;
     
     // Rendering
     private ExecutorService executorService;
@@ -95,8 +94,7 @@ public class PDFView extends FrameLayout {
     private OnPageChangeListener onPageChangeListener;
     private OnErrorListener onErrorListener;
     
-    // Page rendering
-    private int[] pages = null; // Custom page order
+    // Page rendering (pages variable already declared above)
     
     public PDFView(Context context) {
         super(context);
