@@ -21,5 +21,20 @@ Error rendering page 0: width and height must be > 0
 - PDF loads successfully with 9 pages
 - View size detected as 1080x2340
 - Error occurs when trying to create bitmap with zero dimensions
-- Root cause: renderPage() called before view has proper layout dimensions 
+- Root cause: renderPage() called before view has proper layout dimensions
+
+[2025-10-10 / 1:10 PM]
+It is okay now, but the pdf has the similar zoom issues and pdf is not scrolling continuously. why? pdf is not fit with full page, it is now in center i think it should be a big now than it's current size from the center. I mean both left and right side should be filled. because left and right side aren't filled, When I try to zoom, it is starting from center that's what I asking. But it is not fulfill my expectations. Like zoom wil be like from the center and it wil spread both left side and right side equally. In current condition it is starting from center and expanding to the right side, not expanding to the left side.
+
+[ROOT CAUSES IDENTIFIED]
+- onDraw() was drawing bitmap at (spacing, spacing) instead of (0, 0)
+- Matrix translation being applied correctly but then offset by spacing
+- ScaleListener calling matrix.setScale() directly, bypassing updateMatrixScale()
+- Double transformation: matrix translation + manual spacing offset
+
+[FIXES APPLIED]
+- Changed drawBitmap() to draw at (0, 0) - let matrix handle everything
+- Updated ScaleListener to call updateMatrixScale() for proper centering
+- Removed manual spacing offset in onDraw()
+- Now zoom expands equally from center to both left AND right sides 
 
