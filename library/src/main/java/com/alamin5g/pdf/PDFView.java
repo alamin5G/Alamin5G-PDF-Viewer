@@ -262,13 +262,23 @@ public class PDFView extends FrameLayout {
         }
         
         // Apply current zoom level
-        scale *= scaleFactor;
+        float finalScale = scale * scaleFactor;
         
-        // Reset matrix and apply scale
+        // Calculate center position for proper zoom anchoring
+        float scaledWidth = bitmapWidth * finalScale;
+        float scaledHeight = bitmapHeight * finalScale;
+        
+        float translateX = (viewWidth - scaledWidth) / 2f + spacing;
+        float translateY = (viewHeight - scaledHeight) / 2f + spacing;
+        
+        // Reset matrix and apply transformations
         matrix.reset();
-        matrix.setScale(scale, scale);
+        matrix.setScale(finalScale, finalScale);
+        matrix.postTranslate(translateX, translateY);
         
-        Log.d(TAG, "Matrix updated - scale: " + scale + ", viewSize: " + viewWidth + "x" + viewHeight + 
+        Log.d(TAG, "Matrix updated - baseScale: " + scale + ", finalScale: " + finalScale + 
+                   ", translate: (" + translateX + ", " + translateY + ")" +
+                   ", viewSize: " + viewWidth + "x" + viewHeight + 
                    ", bitmapSize: " + bitmapWidth + "x" + bitmapHeight);
     }
     
