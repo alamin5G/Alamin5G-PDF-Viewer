@@ -54,5 +54,21 @@ thanks zoom issues fixed, but the pdf placing issues is not fixed. earlier I tol
 - Implemented onScroll() method in GestureListener
 - Added pan limits to prevent over-scrolling
 - Pan resets when changing pages or resetting zoom
-- Continuous smooth scrolling when zoomed in 
+- Continuous smooth scrolling when zoomed in
+
+[2025-10-10 / 1:30 PM]
+the pdf is still in the same size, staying in the center not filling the widht properly. and no scrolling. did you update the ReadActivity.java? update that
+
+[ROOT CAUSE IN ReadActivity.java]
+- fitEachPage(true) was set, which overrides main fitPolicy
+- When fitEachPage=true, it uses pageFitPolicy instead of main fitPolicy
+- No explicit .fitPolicy(WIDTH) call in loadFromAsset()
+- This caused PDF to not fill screen width
+
+[FIXES APPLIED TO ReadActivity.java]
+- Added .fitPolicy(PDFView.FitPolicy.WIDTH) explicitly
+- Changed .fitEachPage(true) to .fitEachPage(false)
+- Added .useBestQuality(true) for better rendering
+- Changed spacing from 5 to 0 in URL loader
+- Now main fitPolicy(WIDTH) is used correctly 
 
