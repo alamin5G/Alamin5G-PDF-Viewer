@@ -70,6 +70,8 @@ public class PDFView extends FrameLayout {
     private float minZoom = 1.0f;
     private float midZoom = 1.75f;
     private float maxZoom = 3.0f;
+    private float panX = 0f;
+    private float panY = 0f;
     private ScaleGestureDetector scaleGestureDetector;
     private GestureDetector gestureDetector;
     private float lastTouchX, lastTouchY;
@@ -243,8 +245,8 @@ public class PDFView extends FrameLayout {
             return;
         }
         
-        float viewWidth = getWidth() - spacing * 2;
-        float viewHeight = getHeight() - spacing * 2;
+        float viewWidth = getWidth();
+        float viewHeight = getHeight();
         float bitmapWidth = currentBitmap.getWidth();
         float bitmapHeight = currentBitmap.getHeight();
         
@@ -252,39 +254,42 @@ public class PDFView extends FrameLayout {
         float scaleY = viewHeight / bitmapHeight;
         
         // Apply fit policy
-        float scale;
+        float baseScale;
         switch (fitPolicy) {
             case WIDTH:
-                scale = scaleX;
+                baseScale = scaleX;
                 break;
             case HEIGHT:
-                scale = scaleY;
+                baseScale = scaleY;
                 break;
             case BOTH:
             default:
-                scale = Math.min(scaleX, scaleY);
+                baseScale = Math.min(scaleX, scaleY);
                 break;
         }
         
         // Apply current zoom level
-        float finalScale = scale * scaleFactor;
+        float finalScale = baseScale * scaleFactor;
         
-        // Calculate center position for proper zoom anchoring
+        // Calculate scaled dimensions
         float scaledWidth = bitmapWidth * finalScale;
         float scaledHeight = bitmapHeight * finalScale;
         
-        float translateX = (viewWidth - scaledWidth) / 2f + spacing;
-        float translateY = (viewHeight - scaledHeight) / 2f + spacing;
+        // Calculate center position including current pan offsets
+        float translateX = (viewWidth - scaledWidth) / 2f + panX;
+        float translateY = (viewHeight - scaledHeight) / 2f + panY;
         
         // Reset matrix and apply transformations
         matrix.reset();
         matrix.setScale(finalScale, finalScale);
         matrix.postTranslate(translateX, translateY);
         
-        Log.d(TAG, "Matrix updated - baseScale: " + scale + ", finalScale: " + finalScale + 
+        Log.d(TAG, "Matrix updated - baseScale: " + baseScale + ", finalScale: " + finalScale + 
                    ", translate: (" + translateX + ", " + translateY + ")" +
+                   ", pan: (" + panX + ", " + panY + ")" +
                    ", viewSize: " + viewWidth + "x" + viewHeight + 
-                   ", bitmapSize: " + bitmapWidth + "x" + bitmapHeight);
+                   ", bitmapSize: " + bitmapWidth + "x" + bitmapHeight +
+                   ", scaledSize: " + scaledWidth + "x" + scaledHeight);
     }
     
     // Configuration methods
@@ -729,6 +734,8 @@ public class PDFView extends FrameLayout {
     
     public void resetZoom() {
         scaleFactor = 1.0f;
+        panX = 0f;
+        panY = 0f;
         updateMatrixScale();
         invalidate();
         Log.d(TAG, "Zoom reset to: " + scaleFactor);
@@ -961,6 +968,46 @@ public class PDFView extends FrameLayout {
     
     // Gesture listener for swipe navigation
     private class GestureListener extends GestureDetector.SimpleOnGestureListener {
+        @Override
+        public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
+            // Enable continuous scrolling/panning
+            if (scaleFactor > 1.0f) {
+                // Only pan when zoomed in
+                panX -= distanceX;
+                panY -= distanceY;
+                
+                // Apply pan limits to keep content visible
+                float viewWidth = getWidth();
+                float viewHeight = getHeight();
+                
+                if (currentBitmap != null) {
+                    float bitmapWidth = currentBitmap.getWidth();
+                    float bitmapHeight = currentBitmap.getHeight();
+                    float scaleX = viewWidth / bitmapWidth;
+                    float scaleY = viewHeight / bitmapHeight;
+                    float baseScale = Math.min(scaleX, scaleY);
+                    float finalScale = baseScale * scaleFactor;
+                    
+                    float scaledWidth = bitmapWidth * finalScale;
+                    float scaledHeight = bitmapHeight * finalScale;
+                    
+                    // Calculate max pan limits
+                    float maxPanX = Math.max(0, (scaledWidth - viewWidth) / 2f);
+                    float maxPanY = Math.max(0, (scaledHeight - viewHeight) / 2f);
+                    
+                    // Clamp pan values
+                    panX = Math.max(-maxPanX, Math.min(panX, maxPanX));
+                    panY = Math.max(-maxPanY, Math.min(panY, maxPanY));
+                }
+                
+                updateMatrixScale();
+                invalidate();
+                Log.d(TAG, "Scrolling - pan: (" + panX + ", " + panY + ")");
+                return true;
+            }
+            return false;
+        }
+        
         @Override
         public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
             if (!enableSwipe) return false;
