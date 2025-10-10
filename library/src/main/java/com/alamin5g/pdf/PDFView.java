@@ -203,14 +203,12 @@ public class PDFView extends FrameLayout {
                 canvas.save();
                 canvas.concat(matrix);
                 
-                // Apply spacing if configured
-                float x = spacing;
-                float y = spacing;
+                // Draw bitmap at origin (0,0) - matrix already includes translation and spacing
+                Log.d(TAG, "Drawing bitmap with matrix transform, size: " + 
+                           currentBitmap.getWidth() + "x" + currentBitmap.getHeight() +
+                           ", scaleFactor: " + scaleFactor);
                 
-                Log.d(TAG, "Drawing bitmap at (" + x + ", " + y + ") with size: " + 
-                           currentBitmap.getWidth() + "x" + currentBitmap.getHeight());
-                
-                canvas.drawBitmap(currentBitmap, x, y, paint);
+                canvas.drawBitmap(currentBitmap, 0, 0, paint);
                 canvas.restore();
             } catch (Exception e) {
                 Log.e(TAG, "Error drawing bitmap: " + e.getMessage(), e);
@@ -932,17 +930,32 @@ public class PDFView extends FrameLayout {
         @Override
         public boolean onScale(ScaleGestureDetector detector) {
             float scale = detector.getScaleFactor();
-            float newScale = scaleFactor * scale;
-            
-            Log.d(TAG, "Scale gesture: " + scale + ", newScale: " + newScale);
-            
-            if (newScale >= minZoom && newScale <= maxZoom) {
-                scaleFactor = newScale;
-                matrix.setScale(scaleFactor, scaleFactor);
+            float newScaleFactor = scaleFactor * scale;
+
+            // Clamp zoom level between min and max
+            newScaleFactor = Math.max(minZoom, Math.min(newScaleFactor, maxZoom));
+
+            Log.d(TAG, "Scale gesture: " + scale + ", newScale: " + newScaleFactor);
+
+            // Only update if the scale actually changed
+            if (newScaleFactor != scaleFactor) {
+                scaleFactor = newScaleFactor;
+                updateMatrixScale(); // Use updateMatrixScale for proper centering
                 invalidate();
                 Log.d(TAG, "Zoom applied: " + scaleFactor);
             }
+
             return true;
+        }
+
+        @Override
+        public boolean onScaleBegin(ScaleGestureDetector detector) {
+            return true;
+        }
+
+        @Override
+        public void onScaleEnd(ScaleGestureDetector detector) {
+            // Optional: Add any cleanup or final adjustments here
         }
     }
     

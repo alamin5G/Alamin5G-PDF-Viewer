@@ -1,4 +1,4 @@
-[2025-10-10 / 현재 시간]
+[2025-10-10 / 12:54 PM]
 in the @README.md  you said we had zoom method? so we had this or you just addded this? // Set zoom level
 pdfView.zoomTo(2.0f);                          // Without animation
 pdfView.zoomWithAnimation(2.0f);               // With animation
@@ -11,5 +11,15 @@ pdfView.resetZoom();                           // Reset to fit policy
 pdfView.resetZoomWithAnimation();              // Reset with animation
 
 isn't zoom method and scale method are same? did you write what you have added or updated feature in the @README.md ? if you missing then how they will know. isn't it? 
-make sure, you UPDATED IN THE CHANGELOGS FOR EACH VERSION ONLY? OKAY? 
+make sure, you UPDATED IN THE CHANGELOGS FOR EACH VERSION ONLY? OKAY?
+
+[2025-10-10 / 1:00 PM]
+GETTING THIS TOAST WHILE CLICK ON BUTTON TO LOAD THE PDF. 
+Error rendering page 0: width and height must be > 0
+
+[LOG DETAILS]
+- PDF loads successfully with 9 pages
+- View size detected as 1080x2340
+- Error occurs when trying to create bitmap with zero dimensions
+- Root cause: renderPage() called before view has proper layout dimensions 
 
