@@ -51,10 +51,12 @@ public class ReadActivity extends AppCompatActivity {
                 .enableAnnotationRendering(true)
                 .scrollHandle(null)
                 .enableAntialiasing(true)
+                .useBestQuality(true)
+                .fitPolicy(PDFView.FitPolicy.WIDTH)  // Main fit policy - fills screen width
                 .spacing(0)
                 .autoSpacing(false)
                 .pageFitPolicy(PDFView.FitPolicy.WIDTH)
-                .fitEachPage(true)
+                .fitEachPage(false)  // Use main fitPolicy, not individual page fitting
                 .setCacheSize(10)
                 .onLoad(new OnLoadCompleteListener() {
                     @Override
@@ -97,10 +99,12 @@ public class ReadActivity extends AppCompatActivity {
                 .enableAnnotationRendering(true)
                 .scrollHandle(null)
                 .enableAntialiasing(true)
-                .spacing(5)
+                .useBestQuality(true)
+                .fitPolicy(PDFView.FitPolicy.WIDTH)  // Main fit policy - fills screen width
+                .spacing(0)
                 .autoSpacing(false)
                 .pageFitPolicy(PDFView.FitPolicy.WIDTH)
-                .fitEachPage(true)
+                .fitEachPage(false)  // Use main fitPolicy, not individual page fitting
                 .setCacheSize(8)
                 .onDownloadProgress(new OnDownloadProgressListener() {
                     @Override
