@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:gravity="center"
+    android:background="#F5F5F5"
+    tools:context=".MainActivity">
+
+    <!-- App Title -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Alamin5G PDF Viewer Test"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="#2196F3"
+        android:layout_marginBottom="32dp"
+        android:gravity="center" />
+
+    <!-- Test Asset Loading -->
+    <Button
+        android:id="@+id/btnReadAsset"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:text="📄 Test Asset PDF Loading"
+        android:textSize="16sp"
+        android:textColor="#FFFFFF"
+        android:background="#4CAF50"
+        android:layout_marginBottom="16dp"
+        android:elevation="4dp" />
+
+    <!-- Test URL Loading -->
+    <Button
+        android:id="@+id/btnReadUrl"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:text="🌐 Test URL PDF Loading"
+        android:textSize="16sp"
+        android:textColor="#FFFFFF"
+        android:background="#FF9800"
+        android:layout_marginBottom="16dp"
+        android:elevation="4dp" />
+
+    <!-- Test All Features -->
+    <Button
+        android:id="@+id/btnTestFeatures"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:text="🚀 Test All Features"
+        android:textSize="16sp"
+        android:textColor="#FFFFFF"
+        android:background="#9C27B0"
+        android:layout_marginBottom="32dp"
+        android:elevation="4dp" />
+
+    <!-- Info Text -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Testing Alamin5G PDF Viewer v1.0.10\n16KB Compatible • Remote Loading • All Features"
+        android:textSize="14sp"
+        android:textColor="#666666"
+        android:gravity="center"
+        android:lineSpacingExtra="4dp" />
+
+</LinearLayout>

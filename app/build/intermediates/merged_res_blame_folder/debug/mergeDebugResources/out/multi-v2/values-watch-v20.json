@@ -1,0 +1,20 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.alamin5g.pdf.test.app-mergeDebugResources-31:/values-watch-v20/values-watch-v20.xml",
+            "map": [
+                {
+                    "source": "/home/alamin/.gradle/caches/9.0-milestone-1/transforms/abc497b2212e612e7ae950c79b1e7cb2/transformed/appcompat-1.7.1/res/values-watch-v20/values-watch-v20.xml",
+                    "from": {
+                        "startLines": "2,5,8",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "55,214,385",
+                        "endLines": "4,7,10",
+                        "endColumns": "12,12,12",
+                        "endOffsets": "209,380,553"
+                    }
+                }
+            ]
+        }
+    ]
+}
