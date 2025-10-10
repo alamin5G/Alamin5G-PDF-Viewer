@@ -200,12 +200,18 @@ public class PDFView extends FrameLayout {
         super.onDraw(canvas);
         
         if (continuousScrollMode && !pageBitmaps.isEmpty()) {
-            // Continuous scroll mode - draw all pages
-            Log.d(TAG, "onDraw - continuous mode, " + pageBitmaps.size() + " pages, panY: " + panY);
+            // Continuous scroll mode - draw all pages with zoom support
+            Log.d(TAG, "onDraw - continuous mode, " + pageBitmaps.size() + " pages, panY: " + panY + ", zoom: " + scaleFactor);
             
             canvas.save();
-            canvas.translate(0, panY);  // Apply vertical pan
             
+            // Apply zoom scale
+            canvas.scale(scaleFactor, scaleFactor);
+            
+            // Apply pan offsets (divided by scale for proper positioning)
+            canvas.translate(panX / scaleFactor, panY / scaleFactor);
+            
+            // Draw all pages
             for (int i = 0; i < pageBitmaps.size(); i++) {
                 Bitmap bitmap = pageBitmaps.get(i);
                 float yOffset = pageOffsets.get(i);
@@ -1027,9 +1033,17 @@ public class PDFView extends FrameLayout {
             // Only update if the scale actually changed
             if (newScaleFactor != scaleFactor) {
                 scaleFactor = newScaleFactor;
-                updateMatrixScale(); // Use updateMatrixScale for proper centering
-                invalidate();
-                Log.d(TAG, "Zoom applied: " + scaleFactor);
+                
+                if (continuousScrollMode) {
+                    // In continuous mode, just invalidate - zoom is applied in onDraw
+                    invalidate();
+                } else {
+                    // In single page mode, update matrix for proper centering
+                    updateMatrixScale();
+                    invalidate();
+                }
+                
+                Log.d(TAG, "Zoom applied: " + scaleFactor + ", continuous: " + continuousScrollMode);
             }
 
             return true;
@@ -1051,18 +1065,26 @@ public class PDFView extends FrameLayout {
         @Override
         public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
             if (continuousScrollMode) {
-                // Continuous scroll mode - scroll through all pages
+                // Continuous scroll mode - scroll through all pages with zoom support
+                panX -= distanceX;
                 panY -= distanceY;
                 
-                // Apply pan limits based on total content height
+                // Apply pan limits based on total content height and zoom
+                float viewWidth = getWidth();
                 float viewHeight = getHeight();
-                float maxPanY = Math.max(0, totalContentHeight - viewHeight);
+                float scaledContentHeight = totalContentHeight * scaleFactor;
+                float scaledContentWidth = viewWidth * scaleFactor;
                 
-                // Clamp pan values - panY is positive when scrolling down
+                // Calculate max pan limits
+                float maxPanX = Math.max(0, (scaledContentWidth - viewWidth) / 2f);
+                float maxPanY = Math.max(0, scaledContentHeight - viewHeight);
+                
+                // Clamp pan values
+                panX = Math.max(-maxPanX, Math.min(maxPanX, panX));
                 panY = Math.max(-maxPanY, Math.min(0, panY));
                 
                 invalidate();
-                Log.d(TAG, "Continuous scrolling - panY: " + panY + ", max: " + maxPanY);
+                Log.d(TAG, "Continuous scrolling - pan: (" + panX + ", " + panY + "), zoom: " + scaleFactor);
                 return true;
             } else if (scaleFactor > 1.0f) {
                 // Single page mode - only pan when zoomed in
