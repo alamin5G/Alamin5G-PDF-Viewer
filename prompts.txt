@@ -36,5 +36,23 @@ It is okay now, but the pdf has the similar zoom issues and pdf is not scrolling
 - Changed drawBitmap() to draw at (0, 0) - let matrix handle everything
 - Updated ScaleListener to call updateMatrixScale() for proper centering
 - Removed manual spacing offset in onDraw()
-- Now zoom expands equally from center to both left AND right sides 
+- Now zoom expands equally from center to both left AND right sides
+
+[2025-10-10 / 1:20 PM]
+thanks zoom issues fixed, but the pdf placing issues is not fixed. earlier I told you it is placed in center thats good. But it is too small, and on the other hand, pdf is not continuoulsy scrolling like other pdf do.
+
+[ROOT CAUSES IDENTIFIED]
+- viewWidth = getWidth() - spacing * 2 was making PDF too small
+- Translation was adding spacing again (double spacing bug)
+- No onScroll() implementation for continuous scrolling
+- No pan tracking (panX, panY variables missing)
+
+[FIXES APPLIED]
+- Removed spacing subtraction: viewWidth = getWidth() (full size now!)
+- Removed spacing from translation calculation
+- Added panX and panY variables for scroll tracking
+- Implemented onScroll() method in GestureListener
+- Added pan limits to prevent over-scrolling
+- Pan resets when changing pages or resetting zoom
+- Continuous smooth scrolling when zoomed in 
 
