@@ -56,6 +56,7 @@ public class PDFView extends FrameLayout {
     private int defaultPage = 0;
     private int[] pages;
     private FitPolicy fitPolicy = FitPolicy.WIDTH;
+    private boolean continuousScrollMode = true; // Enable continuous scrolling by default
     
     // Additional configuration options
     private boolean enableAnnotationRendering = true;
@@ -84,10 +85,13 @@ public class PDFView extends FrameLayout {
     
     // Rendering
     private ExecutorService executorService;
-    private Bitmap currentBitmap;
+    private Bitmap currentBitmap;  // For single page mode
+    private java.util.List<Bitmap> pageBitmaps = new java.util.ArrayList<>();  // For continuous mode
+    private java.util.List<Float> pageOffsets = new java.util.ArrayList<>();  // Y positions of each page
     private Paint paint;
     private ColorMatrix colorMatrix;
     private ColorMatrixColorFilter colorFilter;
+    private float totalContentHeight = 0f;
     
     // Caching
     private android.util.LruCache<Integer, Bitmap> pageCache;
@@ -195,21 +199,32 @@ public class PDFView extends FrameLayout {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         
-        Log.d(TAG, "onDraw called - currentBitmap: " + (currentBitmap != null ? "exists" : "null") + 
-                   ", isRecycled: " + (currentBitmap != null ? currentBitmap.isRecycled() : "N/A") +
-                   ", canvas size: " + canvas.getWidth() + "x" + canvas.getHeight());
-        
-        // Critical fix: Check if bitmap is not null AND not recycled
-        if (currentBitmap != null && !currentBitmap.isRecycled()) {
+        if (continuousScrollMode && !pageBitmaps.isEmpty()) {
+            // Continuous scroll mode - draw all pages
+            Log.d(TAG, "onDraw - continuous mode, " + pageBitmaps.size() + " pages, panY: " + panY);
+            
+            canvas.save();
+            canvas.translate(0, panY);  // Apply vertical pan
+            
+            for (int i = 0; i < pageBitmaps.size(); i++) {
+                Bitmap bitmap = pageBitmaps.get(i);
+                float yOffset = pageOffsets.get(i);
+                
+                if (bitmap != null && !bitmap.isRecycled()) {
+                    canvas.drawBitmap(bitmap, 0, yOffset, paint);
+                }
+            }
+            
+            canvas.restore();
+        } else if (currentBitmap != null && !currentBitmap.isRecycled()) {
+            // Single page mode
+            Log.d(TAG, "onDraw - single page mode, bitmap: " + currentBitmap.getWidth() + "x" + currentBitmap.getHeight());
+            
             try {
                 canvas.save();
                 canvas.concat(matrix);
                 
                 // Draw bitmap at origin (0,0) - matrix already includes translation and spacing
-                Log.d(TAG, "Drawing bitmap with matrix transform, size: " + 
-                           currentBitmap.getWidth() + "x" + currentBitmap.getHeight() +
-                           ", scaleFactor: " + scaleFactor);
-                
                 canvas.drawBitmap(currentBitmap, 0, 0, paint);
                 canvas.restore();
             } catch (Exception e) {
@@ -221,7 +236,7 @@ public class PDFView extends FrameLayout {
                 canvas.restore(); // Ensure canvas state is restored
             }
         } else {
-            Log.w(TAG, "Cannot draw - bitmap is null or recycled");
+            Log.w(TAG, "Cannot draw - no bitmap available");
         }
     }
     
@@ -231,12 +246,17 @@ public class PDFView extends FrameLayout {
         Log.d(TAG, "View size changed: " + w + "x" + h);
         
         // If we have a PDF loaded but no bitmap (due to previous zero dimensions), render now
-        if (pdfRenderer != null && currentBitmap == null && w > 0 && h > 0) {
-            Log.d(TAG, "View now has valid dimensions, rendering current page: " + currentPage);
-            renderPage(currentPage);
-        } else {
-            updateMatrixScale();
-            invalidate();
+        if (pdfRenderer != null && w > 0 && h > 0) {
+            if (continuousScrollMode && pageBitmaps.isEmpty()) {
+                Log.d(TAG, "View now has valid dimensions, rendering all pages");
+                renderAllPages();
+            } else if (!continuousScrollMode && currentBitmap == null) {
+                Log.d(TAG, "View now has valid dimensions, rendering current page: " + currentPage);
+                renderPage(currentPage);
+            } else {
+                updateMatrixScale();
+                invalidate();
+            }
         }
     }
     
@@ -295,6 +315,11 @@ public class PDFView extends FrameLayout {
     // Configuration methods
     public PDFView enableSwipe(boolean enableSwipe) {
         this.enableSwipe = enableSwipe;
+        return this;
+    }
+    
+    public PDFView continuousScroll(boolean continuousScroll) {
+        this.continuousScrollMode = continuousScroll;
         return this;
     }
     
@@ -467,7 +492,11 @@ public class PDFView extends FrameLayout {
                 onLoadCompleteListener.loadComplete(totalPages);
             }
             
-            renderPage(currentPage);
+            if (continuousScrollMode) {
+                renderAllPages();
+            } else {
+                renderPage(currentPage);
+            }
             
         } catch (IOException e) {
             Log.e(TAG, "Error loading PDF from asset: " + e.getMessage());
@@ -781,6 +810,57 @@ public class PDFView extends FrameLayout {
         }
     }
     
+    private void renderAllPages() {
+        if (pdfRenderer == null || getWidth() == 0 || getHeight() == 0) {
+            Log.w(TAG, "Cannot render all pages yet - waiting for layout");
+            return;
+        }
+        
+        Log.d(TAG, "Rendering all " + totalPages + " pages for continuous scroll");
+        
+        // Clear previous bitmaps
+        pageBitmaps.clear();
+        pageOffsets.clear();
+        
+        float currentY = 0f;
+        float viewWidth = getWidth();
+        
+        for (int i = 0; i < totalPages; i++) {
+            try {
+                PdfRenderer.Page page = pdfRenderer.openPage(i);
+                
+                // Calculate bitmap size based on fit policy
+                int width = (int) viewWidth;
+                int height = (int) (width * (float) page.getHeight() / page.getWidth());
+                
+                // Create bitmap
+                Bitmap.Config config = useBestQuality ? Bitmap.Config.ARGB_8888 : Bitmap.Config.RGB_565;
+                Bitmap bitmap = Bitmap.createBitmap(width, height, config);
+                
+                // Render the page
+                int renderMode = enableAnnotationRendering ? 
+                    PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY : 
+                    PdfRenderer.Page.RENDER_MODE_FOR_PRINT;
+                page.render(bitmap, null, null, renderMode);
+                page.close();
+                
+                // Store bitmap and offset
+                pageBitmaps.add(bitmap);
+                pageOffsets.add(currentY);
+                
+                currentY += height + spacing;
+                
+                Log.d(TAG, "Rendered page " + i + " at offset " + pageOffsets.get(i));
+            } catch (Exception e) {
+                Log.e(TAG, "Error rendering page " + i + ": " + e.getMessage());
+            }
+        }
+        
+        totalContentHeight = currentY;
+        Log.d(TAG, "All pages rendered, total height: " + totalContentHeight);
+        invalidate();
+    }
+    
     private void renderPage(int pageIndex) {
         if (pdfRenderer == null || pageIndex < 0 || pageIndex >= totalPages) {
             Log.e(TAG, "Cannot render page " + pageIndex + ": pdfRenderer=" + (pdfRenderer != null) + ", totalPages=" + totalPages);
@@ -970,9 +1050,22 @@ public class PDFView extends FrameLayout {
     private class GestureListener extends GestureDetector.SimpleOnGestureListener {
         @Override
         public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
-            // Enable continuous scrolling/panning
-            if (scaleFactor > 1.0f) {
-                // Only pan when zoomed in
+            if (continuousScrollMode) {
+                // Continuous scroll mode - scroll through all pages
+                panY -= distanceY;
+                
+                // Apply pan limits based on total content height
+                float viewHeight = getHeight();
+                float maxPanY = Math.max(0, totalContentHeight - viewHeight);
+                
+                // Clamp pan values - panY is positive when scrolling down
+                panY = Math.max(-maxPanY, Math.min(0, panY));
+                
+                invalidate();
+                Log.d(TAG, "Continuous scrolling - panY: " + panY + ", max: " + maxPanY);
+                return true;
+            } else if (scaleFactor > 1.0f) {
+                // Single page mode - only pan when zoomed in
                 panX -= distanceX;
                 panY -= distanceY;
                 
@@ -1002,7 +1095,7 @@ public class PDFView extends FrameLayout {
                 
                 updateMatrixScale();
                 invalidate();
-                Log.d(TAG, "Scrolling - pan: (" + panX + ", " + panY + ")");
+                Log.d(TAG, "Single page scrolling - pan: (" + panX + ", " + panY + ")");
                 return true;
             }
             return false;

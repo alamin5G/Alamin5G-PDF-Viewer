@@ -44,7 +44,8 @@ public class ReadActivity extends AppCompatActivity {
         Log.d(TAG, "Loading PDF from asset: " + pdfFile);
         
         pdfView.fromAsset(pdfFile)
-                .enableSwipe(true)
+                .continuousScroll(true)  // ENABLE CONTINUOUS SCROLLING MODE!
+                .enableSwipe(false)  // Disable swipe for page navigation in continuous mode
                 .swipeHorizontal(false)
                 .enableDoubletap(true)
                 .defaultPage(0)
@@ -53,7 +54,7 @@ public class ReadActivity extends AppCompatActivity {
                 .enableAntialiasing(true)
                 .useBestQuality(true)
                 .fitPolicy(PDFView.FitPolicy.WIDTH)  // Main fit policy - fills screen width
-                .spacing(0)
+                .spacing(10)  // Space between pages
                 .autoSpacing(false)
                 .pageFitPolicy(PDFView.FitPolicy.WIDTH)
                 .fitEachPage(false)  // Use main fitPolicy, not individual page fitting
