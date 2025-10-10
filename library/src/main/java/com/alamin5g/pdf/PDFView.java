@@ -144,7 +144,9 @@ public class PDFView extends FrameLayout {
             
             @Override
             protected void entryRemoved(boolean evicted, Integer key, Bitmap oldValue, Bitmap newValue) {
-                if (oldValue != null && !oldValue.isRecycled()) {
+                // Only recycle if it's not the current bitmap being displayed
+                if (evicted && oldValue != null && !oldValue.isRecycled() && oldValue != currentBitmap) {
+                    Log.d(TAG, "Recycling cached bitmap for page: " + key);
                     oldValue.recycle();
                 }
             }
@@ -319,10 +321,12 @@ public class PDFView extends FrameLayout {
             protected int sizeOf(Integer key, Bitmap bitmap) {
                 return bitmap.getByteCount() / 1024; // Size in KB
             }
-            
+
             @Override
             protected void entryRemoved(boolean evicted, Integer key, Bitmap oldValue, Bitmap newValue) {
-                if (evicted && oldValue != null && !oldValue.isRecycled()) {
+                // Only recycle if it's not the current bitmap being displayed
+                if (evicted && oldValue != null && !oldValue.isRecycled() && oldValue != currentBitmap) {
+                    Log.d(TAG, "Recycling cached bitmap for page: " + key);
                     oldValue.recycle();
                 }
             }
@@ -822,17 +826,30 @@ public class PDFView extends FrameLayout {
                 post(() -> {
                     // Safely replace current bitmap
                     Bitmap oldBitmap = currentBitmap;
-                    currentBitmap = bitmap;
                     
-                    // Cache the bitmap
-                    pageCache.put(pageIndex, bitmap);
+                    // Set new bitmap BEFORE caching to prevent immediate recycling
+                    currentBitmap = bitmap;
                     
                     // Update matrix scale to fit the view
                     updateMatrixScale();
                     
-                    // Recycle old bitmap after setting new one
+                    // Cache the bitmap AFTER setting as current
+                    pageCache.put(pageIndex, bitmap);
+                    
+                    // Recycle old bitmap after setting new one (but not if it's the same)
                     if (oldBitmap != null && !oldBitmap.isRecycled() && oldBitmap != bitmap) {
-                        oldBitmap.recycle();
+                        // Check if old bitmap is still in cache before recycling
+                        boolean inCache = false;
+                        for (int i = 0; i < pageCache.size(); i++) {
+                            if (pageCache.get(i) == oldBitmap) {
+                                inCache = true;
+                                break;
+                            }
+                        }
+                        if (!inCache) {
+                            Log.d(TAG, "Recycling old bitmap for page: " + pageIndex);
+                            oldBitmap.recycle();
+                        }
                     }
                     
                     invalidate();
