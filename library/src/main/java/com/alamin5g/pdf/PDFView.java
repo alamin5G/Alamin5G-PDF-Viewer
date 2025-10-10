@@ -191,6 +191,10 @@ public class PDFView extends FrameLayout {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         
+        Log.d(TAG, "onDraw called - currentBitmap: " + (currentBitmap != null ? "exists" : "null") + 
+                   ", isRecycled: " + (currentBitmap != null ? currentBitmap.isRecycled() : "N/A") +
+                   ", canvas size: " + canvas.getWidth() + "x" + canvas.getHeight());
+        
         // Critical fix: Check if bitmap is not null AND not recycled
         if (currentBitmap != null && !currentBitmap.isRecycled()) {
             try {
@@ -200,6 +204,9 @@ public class PDFView extends FrameLayout {
                 // Apply spacing if configured
                 float x = spacing;
                 float y = spacing;
+                
+                Log.d(TAG, "Drawing bitmap at (" + x + ", " + y + ") with size: " + 
+                           currentBitmap.getWidth() + "x" + currentBitmap.getHeight());
                 
                 canvas.drawBitmap(currentBitmap, x, y, paint);
                 canvas.restore();
@@ -211,7 +218,56 @@ public class PDFView extends FrameLayout {
                 }
                 canvas.restore(); // Ensure canvas state is restored
             }
+        } else {
+            Log.w(TAG, "Cannot draw - bitmap is null or recycled");
         }
+    }
+    
+    @Override
+    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        super.onSizeChanged(w, h, oldw, oldh);
+        Log.d(TAG, "View size changed: " + w + "x" + h);
+        updateMatrixScale();
+        invalidate();
+    }
+    
+    private void updateMatrixScale() {
+        if (currentBitmap == null || getWidth() == 0 || getHeight() == 0) {
+            return;
+        }
+        
+        float viewWidth = getWidth() - spacing * 2;
+        float viewHeight = getHeight() - spacing * 2;
+        float bitmapWidth = currentBitmap.getWidth();
+        float bitmapHeight = currentBitmap.getHeight();
+        
+        float scaleX = viewWidth / bitmapWidth;
+        float scaleY = viewHeight / bitmapHeight;
+        
+        // Apply fit policy
+        float scale;
+        switch (fitPolicy) {
+            case WIDTH:
+                scale = scaleX;
+                break;
+            case HEIGHT:
+                scale = scaleY;
+                break;
+            case BOTH:
+            default:
+                scale = Math.min(scaleX, scaleY);
+                break;
+        }
+        
+        // Apply current zoom level
+        scale *= scaleFactor;
+        
+        // Reset matrix and apply scale
+        matrix.reset();
+        matrix.setScale(scale, scale);
+        
+        Log.d(TAG, "Matrix updated - scale: " + scale + ", viewSize: " + viewWidth + "x" + viewHeight + 
+                   ", bitmapSize: " + bitmapWidth + "x" + bitmapHeight);
     }
     
     // Configuration methods
@@ -770,6 +826,9 @@ public class PDFView extends FrameLayout {
                     
                     // Cache the bitmap
                     pageCache.put(pageIndex, bitmap);
+                    
+                    // Update matrix scale to fit the view
+                    updateMatrixScale();
                     
                     // Recycle old bitmap after setting new one
                     if (oldBitmap != null && !oldBitmap.isRecycled() && oldBitmap != bitmap) {
