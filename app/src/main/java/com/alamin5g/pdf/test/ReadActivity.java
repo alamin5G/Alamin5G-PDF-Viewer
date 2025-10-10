@@ -44,7 +44,7 @@ public class ReadActivity extends AppCompatActivity {
         Log.d(TAG, "Loading PDF from asset: " + pdfFile);
         
         pdfView.fromAsset(pdfFile)
-                .continuousScroll(true)  // ENABLE CONTINUOUS SCROLLING MODE!
+                .continuousScroll(false)  // ENABLE CONTINUOUS SCROLLING MODE!
                 .enableSwipe(false)  // Disable swipe for page navigation in continuous mode
                 .swipeHorizontal(false)
                 .enableDoubletap(true)

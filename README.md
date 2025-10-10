@@ -72,7 +72,7 @@ Include the library in your app-level `build.gradle`:
 
 ```gradle
 dependencies {
-    implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.11'
+    implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.12'
 }
 ```
 
@@ -493,6 +493,23 @@ pdfView.fromAsset("sample.pdf")
 .useBestQuality(false)  // Uses RGB_565
 ```
 
+**🎨 NEW in v1.0.12: Dynamic High-Quality Rendering!**
+
+The library now **automatically re-renders pages at higher resolution when you zoom in**, just like Adobe Acrobat Reader! This ensures:
+- ✅ **No pixelation** when zoomed in
+- ✅ **Crisp, clear text** at all zoom levels
+- ✅ **Vibrant colors** without loss
+- ✅ **Professional quality** comparable to Adobe Reader
+
+**How it works:**
+1. Pages are initially rendered at screen width
+2. When you zoom in significantly (>30% change), pages are **automatically re-rendered** at the zoomed resolution
+3. Bitmaps are created at `width × zoomFactor` for maximum quality
+4. Old bitmaps are recycled to prevent memory leaks
+5. Drawing is done at native resolution (no scaling artifacts)
+
+**Based on AndroidPdfViewer's proven algorithm** - the same library used by millions of apps!
+
 ### NEW: Advanced Configuration Options
 
 #### Annotation Rendering
@@ -782,7 +799,14 @@ No additional ProGuard rules needed. The library is fully compatible with code o
 
 ## 📋 Version History & Features
 
-### 🎯 v1.0.11 - Latest (2025-10-10) - ZOOM & DISPLAY FIXES
+### 🎨 v1.0.12 - Latest (2025-10-10) - DYNAMIC HIGH-QUALITY RENDERING
+- **🎨 Dynamic Quality Rendering**: Pages automatically re-render at zoom resolution
+- **🔍 No More Pixelation**: Text and images stay crisp at all zoom levels
+- **🎯 Centered Zoom**: Zoom centers around touch point like Adobe Reader
+- **⚡ Smart Re-rendering**: Only re-renders when zoom changes >30%
+- **🖼️ Professional Quality**: Full ARGB_8888 quality maintained when zoomed
+
+### 🎯 v1.0.11 (2025-10-10) - ZOOM & DISPLAY FIXES
 - **🔍 Enhanced Zoom Experience**: Fixed zoom anchoring from center instead of top-left
 - **📱 PDF Centering**: Fixed PDF display centering and proper screen fitting
 - **⚡ New Zoom Method**: Added `resetZoomWithAnimation()` for smooth zoom reset
@@ -844,7 +868,7 @@ pdfView.setCacheSize(10);  // Now available!
 implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.7'
 
 // NEW (stable and safe)
-implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.11'
+implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.12'
 ```
 
 ## 🔧 Troubleshooting

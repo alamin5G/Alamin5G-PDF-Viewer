@@ -205,13 +205,11 @@ public class PDFView extends FrameLayout {
             
             canvas.save();
             
-            // Apply zoom scale
-            canvas.scale(scaleFactor, scaleFactor);
+            // Bitmaps are already rendered at the correct zoom resolution
+            // So we only need to apply pan offsets, not scaling
+            canvas.translate(panX, panY);
             
-            // Apply pan offsets (divided by scale for proper positioning)
-            canvas.translate(panX / scaleFactor, panY / scaleFactor);
-            
-            // Draw all pages
+            // Draw all pages at their native resolution (already zoomed)
             for (int i = 0; i < pageBitmaps.size(); i++) {
                 Bitmap bitmap = pageBitmaps.get(i);
                 float yOffset = pageOffsets.get(i);
@@ -785,6 +783,62 @@ public class PDFView extends FrameLayout {
         }).start();
     }
     
+    // Track last rendered zoom level to know when to re-render
+    private float lastRenderedZoom = 1.0f;
+    
+    /**
+     * Zoom centered to a pivot point (like Adobe Reader)
+     * This makes the zoom feel natural - zooming around the touch point
+     */
+    private void zoomCenteredTo(float zoom, float pivotX, float pivotY) {
+        float dzoom = zoom / this.scaleFactor;
+        float oldZoom = this.scaleFactor;
+        this.scaleFactor = zoom;
+        
+        // Adjust pan offsets to keep the pivot point in place
+        // Based on AndroidPdfViewer implementation
+        float newPanX = panX * dzoom + (pivotX - pivotX * dzoom);
+        float newPanY = panY * dzoom + (pivotY - pivotY * dzoom);
+        
+        // Apply the new pan with proper limits
+        panX = newPanX;
+        panY = newPanY;
+        
+        // Apply pan limits (bitmaps are already at zoomed resolution)
+        float viewWidth = getWidth();
+        float viewHeight = getHeight();
+        float contentHeight = totalContentHeight; // Already at zoomed resolution
+        float contentWidth = viewWidth * scaleFactor;
+        
+        // Center horizontally if content is smaller than view
+        if (contentWidth < viewWidth) {
+            panX = 0;
+        } else {
+            float maxPanX = (contentWidth - viewWidth) / 2f;
+            panX = Math.max(-maxPanX, Math.min(maxPanX, panX));
+        }
+        
+        // Center vertically if content is smaller than view
+        if (contentHeight < viewHeight) {
+            panY = 0;
+        } else {
+            float maxPanY = contentHeight - viewHeight;
+            panY = Math.max(-maxPanY, Math.min(0, panY));
+        }
+        
+        // Re-render pages at higher quality if zoom increased significantly
+        // This prevents pixelation when zooming in
+        if (continuousScrollMode && Math.abs(scaleFactor - lastRenderedZoom) > 0.3f) {
+            Log.d(TAG, "Zoom changed significantly (" + lastRenderedZoom + " -> " + scaleFactor + "), re-rendering for quality");
+            lastRenderedZoom = scaleFactor;
+            renderAllPages();
+        } else {
+            invalidate();
+        }
+        
+        Log.d(TAG, "Zoom centered to " + zoom + " at pivot (" + pivotX + ", " + pivotY + "), pan: (" + panX + ", " + panY + ")");
+    }
+    
     // Utility methods
     public void recycle() {
         // Safely recycle current bitmap
@@ -822,7 +876,14 @@ public class PDFView extends FrameLayout {
             return;
         }
         
-        Log.d(TAG, "Rendering all " + totalPages + " pages for continuous scroll");
+        Log.d(TAG, "Rendering all " + totalPages + " pages for continuous scroll at zoom: " + scaleFactor);
+        
+        // Recycle old bitmaps to free memory
+        for (Bitmap oldBitmap : pageBitmaps) {
+            if (oldBitmap != null && !oldBitmap.isRecycled()) {
+                oldBitmap.recycle();
+            }
+        }
         
         // Clear previous bitmaps
         pageBitmaps.clear();
@@ -835,15 +896,16 @@ public class PDFView extends FrameLayout {
             try {
                 PdfRenderer.Page page = pdfRenderer.openPage(i);
                 
-                // Calculate bitmap size based on fit policy
-                int width = (int) viewWidth;
+                // Calculate bitmap size based on fit policy AND current zoom
+                // This ensures high quality at all zoom levels!
+                int width = (int) (viewWidth * scaleFactor);
                 int height = (int) (width * (float) page.getHeight() / page.getWidth());
                 
-                // Create bitmap
+                // Create bitmap at zoomed resolution for quality
                 Bitmap.Config config = useBestQuality ? Bitmap.Config.ARGB_8888 : Bitmap.Config.RGB_565;
                 Bitmap bitmap = Bitmap.createBitmap(width, height, config);
                 
-                // Render the page
+                // Render the page at high resolution
                 int renderMode = enableAnnotationRendering ? 
                     PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY : 
                     PdfRenderer.Page.RENDER_MODE_FOR_PRINT;
@@ -1032,13 +1094,14 @@ public class PDFView extends FrameLayout {
 
             // Only update if the scale actually changed
             if (newScaleFactor != scaleFactor) {
-                scaleFactor = newScaleFactor;
-                
                 if (continuousScrollMode) {
-                    // In continuous mode, just invalidate - zoom is applied in onDraw
-                    invalidate();
+                    // Zoom centered to the focus point (like Adobe Reader)
+                    float focusX = detector.getFocusX();
+                    float focusY = detector.getFocusY();
+                    zoomCenteredTo(newScaleFactor, focusX, focusY);
                 } else {
                     // In single page mode, update matrix for proper centering
+                    scaleFactor = newScaleFactor;
                     updateMatrixScale();
                     invalidate();
                 }
@@ -1069,15 +1132,18 @@ public class PDFView extends FrameLayout {
                 panX -= distanceX;
                 panY -= distanceY;
                 
-                // Apply pan limits based on total content height and zoom
+                // Apply pan limits based on total content height
+                // Note: bitmaps are already rendered at zoom resolution
                 float viewWidth = getWidth();
                 float viewHeight = getHeight();
-                float scaledContentHeight = totalContentHeight * scaleFactor;
-                float scaledContentWidth = viewWidth * scaleFactor;
+                
+                // totalContentHeight is already at zoomed resolution
+                float contentWidth = viewWidth * scaleFactor;
+                float contentHeight = totalContentHeight;
                 
                 // Calculate max pan limits
-                float maxPanX = Math.max(0, (scaledContentWidth - viewWidth) / 2f);
-                float maxPanY = Math.max(0, scaledContentHeight - viewHeight);
+                float maxPanX = Math.max(0, (contentWidth - viewWidth) / 2f);
+                float maxPanY = Math.max(0, contentHeight - viewHeight);
                 
                 // Clamp pan values
                 panX = Math.max(-maxPanX, Math.min(maxPanX, panX));
