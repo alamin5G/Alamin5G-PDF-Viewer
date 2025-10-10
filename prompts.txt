@@ -1,0 +1,15 @@
+[2025-10-10 / 현재 시간]
+in the @README.md  you said we had zoom method? so we had this or you just addded this? // Set zoom level
+pdfView.zoomTo(2.0f);                          // Without animation
+pdfView.zoomWithAnimation(2.0f);               // With animation
+
+// Get current zoom
+float currentZoom = pdfView.getZoom();
+
+// Reset zoom
+pdfView.resetZoom();                           // Reset to fit policy
+pdfView.resetZoomWithAnimation();              // Reset with animation
+
+isn't zoom method and scale method are same? did you write what you have added or updated feature in the @README.md ? if you missing then how they will know. isn't it? 
+make sure, you UPDATED IN THE CHANGELOGS FOR EACH VERSION ONLY? OKAY? 
+

@@ -10,8 +10,8 @@ android {
     defaultConfig {
         minSdk 24
         targetSdk 34
-        versionCode 12
-        versionName "1.0.10"
+        versionCode 13
+        versionName "1.0.11"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         
@@ -75,7 +75,7 @@ afterEvaluate {
             maven(MavenPublication) {
                 groupId = 'com.github.alamin5g'
                 artifactId = 'Alamin5G-PDF-Viewer'
-                version = '1.0.10'
+                version = '1.0.11'
                 
                 // Add the AAR artifact after it's built
                 artifact bundleReleaseAar

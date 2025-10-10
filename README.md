@@ -72,7 +72,7 @@ Include the library in your app-level `build.gradle`:
 
 ```gradle
 dependencies {
-    implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.10'
+    implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.11'
 }
 ```
 
@@ -669,19 +669,48 @@ int currentPage = pdfView.getCurrentPage();
 int totalPages = pdfView.getPageCount();
 ```
 
-### Zoom Methods
+### Zoom Methods (NEW in v1.0.11!)
 
 ```java
-// Set zoom level
+// Set zoom level programmatically
 pdfView.zoomTo(2.0f);                          // Without animation
-pdfView.zoomWithAnimation(2.0f);               // With animation
+pdfView.zoomWithAnimation(2.0f);               // With smooth animation
 
-// Get current zoom
-float currentZoom = pdfView.getZoom();
+// Get current zoom level
+float currentZoom = pdfView.getZoom();         // Returns current scale factor
 
-// Reset zoom
-pdfView.resetZoom();                           // Reset to fit policy
-pdfView.resetZoomWithAnimation();              // Reset with animation
+// Reset zoom to default (1.0x)
+pdfView.resetZoom();                           // Instant reset
+pdfView.resetZoomWithAnimation();              // Smooth reset animation
+
+// Set zoom limits
+pdfView.setMinZoom(0.5f);                      // Minimum zoom level
+pdfView.setMaxZoom(5.0f);                      // Maximum zoom level
+```
+
+### 🔍 Understanding Zoom vs Scale
+
+**Zoom Methods** (`zoomTo`, `getZoom`, `resetZoom`):
+- Control the **user zoom level** (`scaleFactor`) applied on top of the base fit policy
+- Range from `minZoom` (default 0.5x) to `maxZoom` (default 5.0x)
+- Used for user interactions like pinch-to-zoom, double-tap zoom
+- `getZoom()` returns the current zoom multiplier (1.0 = no zoom)
+
+**Scale/Matrix Methods** (internal):
+- Handle the **base scaling** to fit PDF pages to the view size
+- Controlled by `fitPolicy` (WIDTH, HEIGHT, BOTH)
+- Combined with zoom factor for final display scaling
+- `updateMatrixScale()` calculates final transformation matrix
+
+**Example**:
+```java
+// If fit policy scales PDF to 0.8x to fit screen width
+// And user zooms to 2.0x
+// Final display scale = 0.8 × 2.0 = 1.6x
+
+pdfView.fitPolicy(PDFView.FitPolicy.WIDTH);  // Base scaling: ~0.8x
+pdfView.zoomTo(2.0f);                        // User zoom: 2.0x
+// Result: PDF displays at 1.6x total scale
 ```
 
 ### Utility Methods
@@ -751,6 +780,38 @@ No special permissions required! The library uses Android's native `PdfRenderer`
 ### ProGuard/R8
 No additional ProGuard rules needed. The library is fully compatible with code obfuscation.
 
+## 📋 Version History & Features
+
+### 🎯 v1.0.11 - Latest (2025-10-10) - ZOOM & DISPLAY FIXES
+- **🔍 Enhanced Zoom Experience**: Fixed zoom anchoring from center instead of top-left
+- **📱 PDF Centering**: Fixed PDF display centering and proper screen fitting
+- **⚡ New Zoom Method**: Added `resetZoomWithAnimation()` for smooth zoom reset
+- **📐 Matrix Improvements**: Better scaling and translation calculations
+
+### 🌐 v1.0.10 (2025-10-09) - REMOTE PDF LOADING
+- **🌐 Remote PDF Support**: Load PDFs from HTTP/HTTPS URLs
+- **📥 Download Progress**: Track download progress with `OnDownloadProgressListener`
+- **🔗 Cloud Integration**: Support for Google Drive, Dropbox, AWS S3
+- **🌐 Network Permissions**: Added internet and network state permissions
+
+### 🚨 v1.0.9 (2025-10-09) - CRITICAL BUG FIXES
+- **🚨 CRITICAL FIX**: Resolved recycled bitmap crash that caused app crashes
+- **📦 Missing Method**: Added `setCacheSize()` method that was missing
+- **🛡️ Safe Drawing**: Enhanced error handling and bitmap lifecycle management
+- **🔧 Compilation**: Fixed duplicate variable declarations
+
+### ⚙️ v1.0.8 (2025-10-09) - ADVANCED CONFIGURATION
+- **🎨 Annotation Control**: `enableAnnotationRendering()` method
+- **📜 Custom Scroll Handle**: `scrollHandle()` for custom scroll indicators
+- **📏 Page Spacing**: `spacing()` and `autoSpacing()` methods
+- **📄 Individual Page Fitting**: `pageFitPolicy()` and `fitEachPage()` methods
+
+### ✅ v1.0.7 (2025-09-29) - STABLE FOUNDATION
+- **16KB Compatibility**: Full Android 15+ compatibility
+- **Core PDF Features**: Loading, rendering, navigation, zoom
+- **Performance**: LRU caching, hardware acceleration
+- **Gestures**: Pinch-to-zoom, double-tap, swipe navigation
+
 ## 🚨 Critical Bug Fixes in v1.0.9
 
 ### ⚠️ IMPORTANT: Update from v1.0.7/v1.0.8 Immediately!
@@ -783,7 +844,7 @@ pdfView.setCacheSize(10);  // Now available!
 implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.7'
 
 // NEW (stable and safe)
-implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.9'
+implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.11'
 ```
 
 ## 🔧 Troubleshooting

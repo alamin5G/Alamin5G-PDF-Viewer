@@ -704,8 +704,9 @@ public class PDFView extends FrameLayout {
 
     public void zoomTo(float zoom) {
         scaleFactor = Math.max(minZoom, Math.min(maxZoom, zoom));
-        matrix.setScale(scaleFactor, scaleFactor);
+        updateMatrixScale();
         invalidate();
+        Log.d(TAG, "Zoom set to: " + scaleFactor);
     }
     
     public void zoomWithAnimation(float zoom) {
@@ -723,8 +724,18 @@ public class PDFView extends FrameLayout {
     
     public void resetZoom() {
         scaleFactor = 1.0f;
-        matrix.reset();
+        updateMatrixScale();
         invalidate();
+        Log.d(TAG, "Zoom reset to: " + scaleFactor);
+    }
+    
+    public void resetZoomWithAnimation() {
+        // Smooth reset zoom animation
+        animate().scaleX(1.0f / scaleFactor).scaleY(1.0f / scaleFactor).setDuration(300).withEndAction(() -> {
+            resetZoom();
+            setScaleX(1.0f);
+            setScaleY(1.0f);
+        }).start();
     }
     
     // Utility methods
