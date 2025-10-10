@@ -70,5 +70,22 @@ the pdf is still in the same size, staying in the center not filling the widht p
 - Changed .fitEachPage(true) to .fitEachPage(false)
 - Added .useBestQuality(true) for better rendering
 - Changed spacing from 5 to 0 in URL loader
-- Now main fitPolicy(WIDTH) is used correctly 
+- Now main fitPolicy(WIDTH) is used correctly
+
+[2025-10-10 / 2:00 PM]
+i can say the scrolling is quite functional now, but it is not functional yet, only 1 page will be view at the time, but when user try to scrolling it should be work like facebook feed, understnad? if it is not working like that, then what is the use of it? due to current scrolling method, I can't zoom the page. understand?
+
+[ROOT CAUSE]
+- Continuous scroll mode didn't support zoom
+- Only one page visible at a time (not multiple like Facebook feed)
+- No horizontal panning when zoomed
+- Zoom transformation not applied in onDraw()
+
+[FIXES APPLIED - Continuous Scroll + Zoom]
+- Added canvas.scale(scaleFactor, scaleFactor) in onDraw()
+- Added canvas.translate(panX/scaleFactor, panY/scaleFactor)
+- Updated onScroll() to support both X and Y panning
+- Pan limits calculated with zoom factor
+- ScaleListener updated to handle continuous mode
+- Now works like Facebook feed WITH zoom capability! 
 
