@@ -229,8 +229,15 @@ public class PDFView extends FrameLayout {
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
         Log.d(TAG, "View size changed: " + w + "x" + h);
-        updateMatrixScale();
-        invalidate();
+        
+        // If we have a PDF loaded but no bitmap (due to previous zero dimensions), render now
+        if (pdfRenderer != null && currentBitmap == null && w > 0 && h > 0) {
+            Log.d(TAG, "View now has valid dimensions, rendering current page: " + currentPage);
+            renderPage(currentPage);
+        } else {
+            updateMatrixScale();
+            invalidate();
+        }
     }
     
     private void updateMatrixScale() {
@@ -801,6 +808,16 @@ public class PDFView extends FrameLayout {
                 PdfRenderer.Page page = pdfRenderer.openPage(actualPageIndex);
                 
                 // Calculate bitmap size based on fit policy
+                int viewWidth = getWidth();
+                int viewHeight = getHeight();
+                
+                // Check if view has valid dimensions
+                if (viewWidth <= 0 || viewHeight <= 0) {
+                    Log.w(TAG, "View dimensions not ready: " + viewWidth + "x" + viewHeight + ", skipping render");
+                    page.close(); // Close the page before returning
+                    return;
+                }
+                
                 int width, height;
                 
                 // Use pageFitPolicy if fitEachPage is enabled, otherwise use fitPolicy
@@ -808,17 +825,17 @@ public class PDFView extends FrameLayout {
                 
                 switch (currentFitPolicy) {
                     case WIDTH:
-                        width = getWidth();
+                        width = viewWidth;
                         height = (int) (width * (float) page.getHeight() / page.getWidth());
                         break;
                     case HEIGHT:
-                        height = getHeight();
+                        height = viewHeight;
                         width = (int) (height * (float) page.getWidth() / page.getHeight());
                         break;
                     case BOTH:
                     default:
-                        width = getWidth();
-                        height = getHeight();
+                        width = viewWidth;
+                        height = viewHeight;
                         break;
                 }
                 
@@ -828,6 +845,13 @@ public class PDFView extends FrameLayout {
                     width -= spacing * 2;
                     height -= spacing * 2;
                 }
+                
+                // Ensure minimum dimensions
+                width = Math.max(width, 1);
+                height = Math.max(height, 1);
+                
+                Log.d(TAG, "Creating bitmap with dimensions: " + width + "x" + height + 
+                      " (view: " + viewWidth + "x" + viewHeight + ")");
                 
                 // Create bitmap with appropriate quality
                 Bitmap.Config config = useBestQuality ? Bitmap.Config.ARGB_8888 : Bitmap.Config.RGB_565;
