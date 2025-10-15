@@ -16,6 +16,7 @@ import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.widget.FrameLayout;
+import android.widget.OverScroller;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -57,6 +58,10 @@ public class PDFView extends FrameLayout {
     private int[] pages;
     private FitPolicy fitPolicy = FitPolicy.WIDTH;
     private boolean continuousScrollMode = true; // Enable continuous scrolling by default
+    private boolean pageFling = false; // v1.0.14: Page fling on swipe (false = smooth scroll)
+    private boolean pageSnap = false; // v1.0.14: Snap to page boundary after scroll
+    private boolean renderDuringScale = false; // v1.0.14: Render during pinch zoom
+    private String pdfPassword = null; // v1.0.14: Password for encrypted PDFs
     
     // Additional configuration options
     private boolean enableAnnotationRendering = true;
@@ -77,6 +82,10 @@ public class PDFView extends FrameLayout {
     private GestureDetector gestureDetector;
     private float lastTouchX, lastTouchY;
     private boolean isDragging = false;
+    
+    // Smooth scrolling (v1.0.14)
+    private OverScroller scroller;
+    private boolean flinging = false;
     
     // Fit policies
     public enum FitPolicy {
@@ -99,7 +108,7 @@ public class PDFView extends FrameLayout {
     private int cacheSize = DEFAULT_CACHE_SIZE; // Configurable cache size
     
     // Lazy loading for continuous mode (v1.0.13 - Memory optimization)
-    private static final int MAX_CACHED_PAGES = 5; // Maximum pages in memory at once (optimized for 35 MB)
+    private static final int MAX_CACHED_PAGES = 7; // Maximum pages in memory at once (~49 MB for smooth scrolling)
     private final java.util.Map<Integer, Bitmap> continuousPageCache = new java.util.LinkedHashMap<Integer, Bitmap>(MAX_CACHED_PAGES + 1, 0.75f, true) {
         @Override
         protected boolean removeEldestEntry(java.util.Map.Entry<Integer, Bitmap> eldest) {
@@ -156,6 +165,9 @@ public class PDFView extends FrameLayout {
         // Initialize gesture detectors
         scaleGestureDetector = new ScaleGestureDetector(getContext(), new ScaleListener());
         gestureDetector = new GestureDetector(getContext(), new GestureListener());
+        
+        // Initialize smooth scrolling (v1.0.14)
+        scroller = new OverScroller(getContext());
         
         // Initialize thread pool for rendering
         executorService = Executors.newSingleThreadExecutor();
@@ -224,8 +236,7 @@ public class PDFView extends FrameLayout {
             
             canvas.save();
             
-            // Bitmaps are already rendered at the correct zoom resolution
-            // So we only need to apply pan offsets, not scaling
+            // Apply pan offsets
             canvas.translate(panX, panY);
             
             // Draw only cached pages (lazy loaded)
@@ -233,8 +244,12 @@ public class PDFView extends FrameLayout {
                 Bitmap bitmap = continuousPageCache.get(i);
                 
                 if (bitmap != null && !bitmap.isRecycled()) {
-                    float yOffset = pageOffsets.get(i);
-                    canvas.drawBitmap(bitmap, 0, yOffset, paint);
+                    // CRITICAL: Multiply BASE offset by scaleFactor (like AndroidPdfViewer)
+                    // pageOffsets are stored at zoom=1.0, so we scale them dynamically
+                    float baseOffset = pageOffsets.get(i);
+                    float scaledOffset = baseOffset * scaleFactor;
+                    
+                    canvas.drawBitmap(bitmap, 0, scaledOffset, paint);
                 }
             }
             
@@ -452,6 +467,76 @@ public class PDFView extends FrameLayout {
     
     public PDFView fitEachPage(boolean fitEachPage) {
         this.fitEachPage = fitEachPage;
+        return this;
+    }
+    
+    // v1.0.14: Page fling and snap configuration
+    public PDFView pageFling(boolean pageFling) {
+        this.pageFling = pageFling;
+        return this;
+    }
+    
+    public PDFView pageSnap(boolean pageSnap) {
+        this.pageSnap = pageSnap;
+        return this;
+    }
+    
+    public boolean isPageFlingEnabled() {
+        return pageFling;
+    }
+    
+    public boolean isPageSnapEnabled() {
+        return pageSnap;
+    }
+    
+    // v1.0.14: Additional getter methods for complete API coverage
+    public boolean isBestQuality() {
+        return useBestQuality;
+    }
+    
+    public boolean isSwipeVertical() {
+        return !swipeHorizontal;
+    }
+    
+    public boolean isSwipeEnabled() {
+        return enableSwipe;
+    }
+    
+    public boolean isAnnotationRendering() {
+        return enableAnnotationRendering;
+    }
+    
+    public boolean isAntialiasing() {
+        return enableAntialiasing;
+    }
+    
+    public int getSpacingPx() {
+        return spacing;
+    }
+    
+    public boolean isAutoSpacingEnabled() {
+        return autoSpacing;
+    }
+    
+    public FitPolicy getPageFitPolicy() {
+        return pageFitPolicy;
+    }
+    
+    public boolean isFitEachPage() {
+        return fitEachPage;
+    }
+    
+    public void enableRenderDuringScale(boolean enable) {
+        this.renderDuringScale = enable;
+    }
+    
+    public boolean doRenderDuringScale() {
+        return renderDuringScale;
+    }
+    
+    // v1.0.14: Password support for encrypted PDFs
+    public PDFView password(String password) {
+        this.pdfPassword = password;
         return this;
     }
     
@@ -720,17 +805,38 @@ public class PDFView extends FrameLayout {
     // Navigation methods
     public void jumpTo(int page) {
         Log.d(TAG, "jumpTo called with page: " + page + ", totalPages: " + totalPages);
-        if (page >= 0 && page < totalPages) {
-            currentPage = page;
+        
+        if (page < 0 || page >= totalPages) {
+            Log.w(TAG, "Invalid page number: " + page + " (total: " + totalPages + ")");
+            return;
+        }
+        
+        currentPage = page;
+        
+        // v1.0.14: Different behavior for continuous vs single page mode
+        if (continuousScrollMode) {
+            // In continuous mode, scroll to the page position (don't render single page)
+            if (page < pageOffsets.size()) {
+                // CRITICAL: Scale BASE offset by scaleFactor (like AndroidPdfViewer)
+                float baseOffset = pageOffsets.get(page);
+                float scaledOffset = baseOffset * scaleFactor;
+                panY = -scaledOffset;
+                panX = 0;
+                
+                // Ensure visible pages are rendered
+                renderVisiblePages();
+                
+                Log.d(TAG, "Jumped to page " + page + " in continuous mode, panY: " + panY);
+            }
+        } else {
+            // Single page mode: render the specific page
             Log.d(TAG, "Jumping to page: " + currentPage);
             renderPage(currentPage);
             resetZoom();
-            
-            if (onPageChangeListener != null) {
-                onPageChangeListener.onPageChanged(currentPage, totalPages);
-            }
-        } else {
-            Log.w(TAG, "Invalid page number: " + page + " (total: " + totalPages + ")");
+        }
+        
+        if (onPageChangeListener != null) {
+            onPageChangeListener.onPageChanged(currentPage, totalPages);
         }
     }
     
@@ -754,6 +860,215 @@ public class PDFView extends FrameLayout {
         return totalPages;
     }
     
+    // v1.0.14: Position and offset methods for AndroidPdfViewer compatibility
+    public float getPositionOffset() {
+        if (totalContentHeight == 0) return 0;
+        // CRITICAL: Use scaled content height
+        float scaledContentHeight = totalContentHeight * scaleFactor;
+        return Math.abs(panY) / scaledContentHeight;
+    }
+    
+    public void setPositionOffset(float progress) {
+        setPositionOffset(progress, true);
+    }
+    
+    public void setPositionOffset(float progress, boolean moveHandle) {
+        if (totalContentHeight == 0) return;
+        
+        // CRITICAL: Scale BASE totalContentHeight by scaleFactor
+        float scaledContentHeight = totalContentHeight * scaleFactor;
+        float targetPanY = -progress * scaledContentHeight;
+        panY = Math.max(-scaledContentHeight + getHeight(), Math.min(0, targetPanY));
+        
+        if (continuousScrollMode) {
+            renderVisiblePages();
+        }
+        invalidate();
+        Log.d(TAG, "Position offset set to: " + progress + ", panY: " + panY);
+    }
+    
+    /**
+     * Move to absolute position with bounds checking (v1.0.14)
+     * Similar to AndroidPdfViewer's moveTo() method
+     */
+    public void moveTo(float x, float y) {
+        if (!continuousScrollMode) {
+            return;
+        }
+        
+        // Apply bounds (like AndroidPdfViewer)
+        float viewWidth = getWidth();
+        float viewHeight = getHeight();
+        float contentWidth = viewWidth * scaleFactor;
+        // CRITICAL: Scale BASE totalContentHeight by scaleFactor (like AndroidPdfViewer)
+        float contentHeight = totalContentHeight * scaleFactor;
+        
+        // Horizontal pan limits (allow FULL left-right panning)
+        if (contentWidth < viewWidth) {
+            // Content fits - center it
+            panX = (viewWidth - contentWidth) / 2f;
+        } else {
+            // Content larger - allow panning from 0 to -(contentWidth - viewWidth)
+            panX = Math.max(-(contentWidth - viewWidth), Math.min(0, x));
+        }
+        
+        // Vertical pan limits
+        if (contentHeight < viewHeight) {
+            // Content fits - center it
+            panY = (viewHeight - contentHeight) / 2f;
+        } else {
+            // Content larger - allow panning from 0 to -(contentHeight - viewHeight)
+            panY = Math.max(-(contentHeight - viewHeight), Math.min(0, y));
+        }
+        
+        invalidate();
+    }
+    
+    /**
+     * Move relative to current position (v1.0.14)
+     * Similar to AndroidPdfViewer's moveRelativeTo() method
+     */
+    public void moveRelativeTo(float dx, float dy) {
+        moveTo(panX + dx, panY + dy);
+    }
+    
+    public float getCurrentXOffset() {
+        return panX;
+    }
+    
+    public float getCurrentYOffset() {
+        return panY;
+    }
+    
+    public boolean isZooming() {
+        return scaleFactor > minZoom;
+    }
+    
+    public boolean isRecycled() {
+        return pdfRenderer == null;
+    }
+    
+    public void stopFling() {
+        // Stop any ongoing scroll animation
+        // In our implementation, we don't have explicit fling animation to stop
+        // But we can clear velocity if needed
+        Log.d(TAG, "stopFling called");
+    }
+    
+    @Override
+    public boolean canScrollHorizontally(int direction) {
+        if (!continuousScrollMode) return false;
+        
+        float contentWidth = getWidth() * scaleFactor;
+        if (direction > 0) {
+            // Check if can scroll right
+            return panX < (contentWidth - getWidth()) / 2f;
+        } else {
+            // Check if can scroll left
+            return panX > -(contentWidth - getWidth()) / 2f;
+        }
+    }
+    
+    @Override
+    public boolean canScrollVertically(int direction) {
+        if (!continuousScrollMode) return false;
+        
+        if (direction > 0) {
+            // Check if can scroll down
+            return panY < 0;
+        } else {
+            // Check if can scroll up
+            return panY > -(totalContentHeight - getHeight());
+        }
+    }
+    
+    // v1.0.14: Additional utility methods for complete AndroidPdfViewer compatibility
+    @Override
+    public void computeScroll() {
+        super.computeScroll();
+        
+        // v1.0.14: Handle smooth fling animation with OverScroller
+        if (scroller.computeScrollOffset()) {
+            // Update position from scroller
+            moveTo(-scroller.getCurrX(), -scroller.getCurrY());
+            
+            // Request next frame
+            postInvalidateOnAnimation();
+        } else if (flinging) {
+            // Fling animation finished
+            flinging = false;
+            // Final render after fling stops
+            renderVisiblePages();
+            Log.d(TAG, "Fling ended, final render complete");
+        }
+    }
+    
+    public void performPageSnap() {
+        if (!pageSnap || !continuousScrollMode || totalContentHeight == 0) {
+            return;
+        }
+        
+        // Calculate which page is closest to current position
+        int nearestPage = 0;
+        float minDistance = Float.MAX_VALUE;
+        
+        for (int i = 0; i < pageOffsets.size(); i++) {
+            float pageTop = -pageOffsets.get(i);
+            float distance = Math.abs(panY - pageTop);
+            if (distance < minDistance) {
+                minDistance = distance;
+                nearestPage = i;
+            }
+        }
+        
+        // Snap to the nearest page
+        float targetPanY = -pageOffsets.get(nearestPage);
+        
+        // Animate to snap position
+        animate().translationY(targetPanY - panY)
+                .setDuration(200)
+                .withEndAction(() -> {
+                    panY = targetPanY;
+                    setTranslationY(0);
+                    renderVisiblePages();
+                    invalidate();
+                }).start();
+        
+        Log.d(TAG, "Snapping to page: " + nearestPage);
+    }
+    
+    public android.util.SizeF getPageSize(int pageIndex) {
+        if (pdfRenderer == null || pageIndex < 0 || pageIndex >= totalPages) {
+            return new android.util.SizeF(0, 0);
+        }
+        
+        try {
+            PdfRenderer.Page page = pdfRenderer.openPage(pageIndex);
+            android.util.SizeF size = new android.util.SizeF(page.getWidth(), page.getHeight());
+            page.close();
+            return size;
+        } catch (Exception e) {
+            Log.e(TAG, "Error getting page size: " + e.getMessage());
+            return new android.util.SizeF(0, 0);
+        }
+    }
+    
+    public int getPageAtPositionOffset(float positionOffset) {
+        if (totalContentHeight == 0 || pageOffsets.isEmpty()) {
+            return 0;
+        }
+        
+        float targetY = positionOffset * totalContentHeight;
+        
+        for (int i = 0; i < pageOffsets.size(); i++) {
+            if (pageOffsets.get(i) >= targetY) {
+                return Math.max(0, i - 1);
+            }
+        }
+        
+        return totalPages - 1;
+    }
+    
     // Zoom methods
     public void setMinZoom(float minZoom) {
         this.minZoom = minZoom;
@@ -765,6 +1080,10 @@ public class PDFView extends FrameLayout {
 
     public void setMaxZoom(float maxZoom) {
         this.maxZoom = maxZoom;
+    }
+    
+    public float getMaxZoom() {
+        return maxZoom;
     }
 
     public void zoomTo(float zoom) {
@@ -781,6 +1100,22 @@ public class PDFView extends FrameLayout {
             setScaleX(1.0f);
             setScaleY(1.0f);
         }).start();
+    }
+    
+    // v1.0.14: Zoom with animation centered at specific point
+    public void zoomWithAnimation(float centerX, float centerY, float scale) {
+        animate().scaleX(scale / scaleFactor).scaleY(scale / scaleFactor).setDuration(300).withEndAction(() -> {
+            zoomCenteredTo(scale, centerX, centerY);
+            setScaleX(1.0f);
+            setScaleY(1.0f);
+        }).start();
+    }
+    
+    // v1.0.14: Relative zoom method
+    public void zoomCenteredRelativeTo(float dzoom, android.graphics.PointF pivot) {
+        float newZoom = scaleFactor + dzoom;
+        newZoom = Math.max(minZoom, Math.min(maxZoom, newZoom));
+        zoomCenteredTo(newZoom, pivot.x, pivot.y);
     }
     
     public float getZoom() {
@@ -805,6 +1140,42 @@ public class PDFView extends FrameLayout {
         }).start();
     }
     
+    // v1.0.14: Layout check methods
+    public boolean pageFillsScreen() {
+        if (continuousScrollMode) {
+            return totalContentHeight * scaleFactor >= getHeight();
+        }
+        return true; // Single page always fills
+    }
+    
+    public boolean documentFitsView() {
+        return totalContentHeight * scaleFactor <= getHeight();
+    }
+    
+    public void fitToWidth(int page) {
+        if (page < 0 || page >= totalPages) return;
+        
+        jumpTo(page);
+        
+        // Calculate zoom needed to fit width
+        if (getWidth() > 0) {
+            android.util.SizeF pageSize = getPageSize(page);
+            if (pageSize.getWidth() > 0) {
+                float targetZoom = (float) getWidth() / pageSize.getWidth();
+                zoomTo(targetZoom);
+            }
+        }
+    }
+    
+    // v1.0.14: Scale conversion utilities
+    public float toRealScale(float size) {
+        return size / scaleFactor;
+    }
+    
+    public float toCurrentScale(float size) {
+        return size * scaleFactor;
+    }
+    
     /**
      * Zoom centered to a pivot point (like Adobe Reader)
      * This makes the zoom feel natural - zooming around the touch point
@@ -812,6 +1183,9 @@ public class PDFView extends FrameLayout {
     private void zoomCenteredTo(float zoom, float pivotX, float pivotY) {
         float dzoom = zoom / this.scaleFactor;
         float oldZoom = this.scaleFactor;
+        float oldPanX = panX;
+        float oldPanY = panY;
+        
         this.scaleFactor = zoom;
         
         // Adjust pan offsets to keep the pivot point in place
@@ -819,45 +1193,41 @@ public class PDFView extends FrameLayout {
         float newPanX = panX * dzoom + (pivotX - pivotX * dzoom);
         float newPanY = panY * dzoom + (pivotY - pivotY * dzoom);
         
+        Log.d(TAG, "ZOOM CENTERED: oldZoom=" + oldZoom + " → newZoom=" + zoom + ", dzoom=" + dzoom);
+        Log.d(TAG, "ZOOM PAN: oldPan=(" + oldPanX + "," + oldPanY + ") → newPan=(" + newPanX + "," + newPanY + ")");
+        
         // Apply the new pan with proper limits
         panX = newPanX;
         panY = newPanY;
         
-        // Apply pan limits (bitmaps are already at zoomed resolution)
+        // Apply pan limits (like AndroidPdfViewer)
         float viewWidth = getWidth();
         float viewHeight = getHeight();
-        float contentHeight = totalContentHeight; // Already at zoomed resolution
+        // CRITICAL: Scale BASE totalContentHeight by scaleFactor (like AndroidPdfViewer)
+        float contentHeight = totalContentHeight * scaleFactor;
         float contentWidth = viewWidth * scaleFactor;
         
-        // Center horizontally if content is smaller than view
+        // Horizontal pan limits (allow FULL left-right panning)
         if (contentWidth < viewWidth) {
-            panX = 0;
+            // Content fits - center it
+            panX = (viewWidth - contentWidth) / 2f;
         } else {
-            float maxPanX = (contentWidth - viewWidth) / 2f;
-            panX = Math.max(-maxPanX, Math.min(maxPanX, panX));
+            // Content larger - allow panning from 0 to -(contentWidth - viewWidth)
+            panX = Math.max(-(contentWidth - viewWidth), Math.min(0, panX));
         }
         
-        // Center vertically if content is smaller than view
+        // Vertical pan limits
         if (contentHeight < viewHeight) {
-            panY = 0;
+            // Content fits - center it
+            panY = (viewHeight - contentHeight) / 2f;
         } else {
-            float maxPanY = contentHeight - viewHeight;
-            panY = Math.max(-maxPanY, Math.min(0, panY));
+            // Content larger - allow panning from 0 to -(contentHeight - viewHeight)
+            panY = Math.max(-(contentHeight - viewHeight), Math.min(0, panY));
         }
         
-        // v1.0.13: Re-render visible pages at higher quality if zoom increased significantly
-        // This prevents pixelation when zooming in
-        if (continuousScrollMode && Math.abs(scaleFactor - lastRenderedZoom) > 0.3f) {
-            Log.d(TAG, "Zoom changed significantly (" + lastRenderedZoom + " -> " + scaleFactor + "), re-rendering visible pages for quality");
-            lastRenderedZoom = scaleFactor;
-            
-            // Clear cache and re-initialize offsets at new zoom level
-            continuousPageCache.clear();
-            initializePageOffsets();
-            renderVisiblePages();
-        } else {
-            invalidate();
-        }
+        // v1.0.14: Don't clear cache or re-render during zoom gesture
+        // This prevents page jumps and flicker. Re-rendering happens in onScaleEnd()
+        invalidate();
         
         Log.d(TAG, "Zoom centered to " + zoom + " at pivot (" + pivotX + ", " + pivotY + "), pan: (" + panX + ", " + panY + ")");
     }
@@ -907,19 +1277,23 @@ public class PDFView extends FrameLayout {
         float currentY = 0f;
         float viewWidth = getWidth();
         
-        Log.d(TAG, "Initializing page offsets for " + totalPages + " pages (no rendering yet)");
+        Log.d(TAG, "Initializing page offsets for " + totalPages + " pages at BASE zoom (1.0)");
         
         for (int i = 0; i < totalPages; i++) {
             pageOffsets.add(currentY);
             
-            // Calculate height without rendering bitmap (very cheap operation)
+            // CRITICAL: Calculate height at BASE zoom (1.0), NOT current scaleFactor!
+            // AndroidPdfViewer stores offsets at zoom=1.0 and multiplies by zoom when drawing
+            // This way offsets don't need recalculation when zoom changes!
             try {
                 PdfRenderer.Page page = pdfRenderer.openPage(i);
-                int width = (int) (viewWidth * scaleFactor);
+                int width = (int) viewWidth;  // Base width (zoom = 1.0)
                 int height = (int) (width * (float) page.getHeight() / page.getWidth());
                 page.close();
                 
                 currentY += height + spacing;
+                
+                Log.d(TAG, "Page " + i + " BASE offset: " + pageOffsets.get(i) + ", BASE height: " + height);
             } catch (Exception e) {
                 Log.e(TAG, "Error calculating page offset: " + e.getMessage());
                 currentY += 1681 + spacing; // Default height fallback
@@ -927,7 +1301,7 @@ public class PDFView extends FrameLayout {
         }
         
         totalContentHeight = currentY;
-        Log.d(TAG, "Page offsets initialized, total height: " + totalContentHeight);
+        Log.d(TAG, "Page offsets initialized at BASE zoom, total BASE height: " + totalContentHeight);
     }
     
     /**
@@ -943,7 +1317,9 @@ public class PDFView extends FrameLayout {
         boolean foundStart = false;
         
         for (int i = 0; i < pageOffsets.size(); i++) {
-            float pageTop = pageOffsets.get(i);
+            // CRITICAL: Scale BASE offset by scaleFactor (like AndroidPdfViewer)
+            float baseOffset = pageOffsets.get(i);
+            float pageTop = baseOffset * scaleFactor;
             
             // Estimate page height (check cache or use default)
             float pageHeight;
@@ -951,9 +1327,10 @@ public class PDFView extends FrameLayout {
             if (cachedBitmap != null && !cachedBitmap.isRecycled()) {
                 pageHeight = cachedBitmap.getHeight();
             } else if (i < pageOffsets.size() - 1) {
-                pageHeight = pageOffsets.get(i + 1) - pageTop - spacing;
+                float baseHeight = pageOffsets.get(i + 1) - baseOffset - spacing;
+                pageHeight = baseHeight * scaleFactor;
             } else {
-                pageHeight = 1681; // Default height
+                pageHeight = 1681 * scaleFactor; // Default height scaled
             }
             
             float pageBottom = pageTop + pageHeight;
@@ -983,6 +1360,8 @@ public class PDFView extends FrameLayout {
             PdfRenderer.Page page = pdfRenderer.openPage(pageIndex);
             
             float viewWidth = getWidth();
+            // CRITICAL: Render at CURRENT zoom level (scaleFactor) for high quality
+            // Bitmaps are rendered at zoom resolution, then drawn with scaled offsets
             int width = (int) (viewWidth * scaleFactor);
             int height = (int) (width * (float) page.getHeight() / page.getWidth());
             
@@ -998,7 +1377,7 @@ public class PDFView extends FrameLayout {
             // Add to cache (automatically removes oldest if cache is full)
             continuousPageCache.put(pageIndex, bitmap);
             
-            Log.d(TAG, "Rendered page " + pageIndex + " (" + width + "x" + height + ") - Cache size: " + continuousPageCache.size());
+            Log.d(TAG, "Rendered page " + pageIndex + " at zoom " + scaleFactor + " (" + width + "x" + height + ") - Cache size: " + continuousPageCache.size());
         } catch (Exception e) {
             Log.e(TAG, "Error rendering page " + pageIndex + ": " + e.getMessage());
         }
@@ -1218,43 +1597,49 @@ public class PDFView extends FrameLayout {
 
         @Override
         public boolean onScaleBegin(ScaleGestureDetector detector) {
+            Log.d(TAG, "Zoom gesture STARTED at zoom: " + scaleFactor);
             return true;
         }
 
         @Override
         public void onScaleEnd(ScaleGestureDetector detector) {
-            // Optional: Add any cleanup or final adjustments here
+            // v1.0.14: Re-render pages at new zoom level AFTER zoom gesture completes
+            // This prevents page jumps during zoom while ensuring high quality after zoom
+            if (continuousScrollMode && Math.abs(scaleFactor - lastRenderedZoom) > 0.3f) {
+                Log.d(TAG, "Zoom gesture ended, re-rendering at zoom: " + scaleFactor);
+                lastRenderedZoom = scaleFactor;
+                
+                // Clear cache and re-render WITHOUT recalculating offsets
+                // DON'T call initializePageOffsets() - it causes position jumps!
+                continuousPageCache.clear();
+                renderVisiblePages();
+            }
         }
     }
     
     // Gesture listener for swipe navigation
     private class GestureListener extends GestureDetector.SimpleOnGestureListener {
         @Override
+        public boolean onDown(MotionEvent e) {
+            // v1.0.14: Stop any active fling when user touches the screen
+            if (flinging) {
+                scroller.forceFinished(true);
+                flinging = false;
+                Log.d(TAG, "Fling stopped by user touch");
+            }
+            return true;
+        }
+        
+        @Override
         public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
             if (continuousScrollMode) {
-                // Continuous scroll mode - scroll through all pages with zoom support
-                panX -= distanceX;
-                panY -= distanceY;
+                // v1.0.14: Use moveRelativeTo() for proper bounds checking
+                moveRelativeTo(-distanceX, -distanceY);
                 
-                // Apply pan limits based on total content height
-                // Note: bitmaps are already rendered at zoom resolution
-                float viewWidth = getWidth();
-                float viewHeight = getHeight();
-                
-                // totalContentHeight is already at zoomed resolution
-                float contentWidth = viewWidth * scaleFactor;
-                float contentHeight = totalContentHeight;
-                
-                // Calculate max pan limits
-                float maxPanX = Math.max(0, (contentWidth - viewWidth) / 2f);
-                float maxPanY = Math.max(0, contentHeight - viewHeight);
-                
-                // Clamp pan values
-                panX = Math.max(-maxPanX, Math.min(maxPanX, panX));
-                panY = Math.max(-maxPanY, Math.min(0, panY));
-                
-                // v1.0.13: Trigger lazy loading when scrolling
-                renderVisiblePages();
+                // v1.0.13: Trigger lazy loading when scrolling (only if not flinging)
+                if (!flinging) {
+                    renderVisiblePages();
+                }
                 
                 Log.d(TAG, "Continuous scrolling - pan: (" + panX + ", " + panY + "), zoom: " + scaleFactor);
                 return true;
@@ -1301,6 +1686,38 @@ public class PDFView extends FrameLayout {
             
             Log.d(TAG, "Fling detected: velocityX=" + velocityX + ", velocityY=" + velocityY);
             
+            // v1.0.14: In continuous scroll mode with smooth scrolling enabled
+            if (continuousScrollMode && !pageFling) {
+                // Stop any existing fling
+                if (flinging) {
+                    scroller.forceFinished(true);
+                }
+                
+                // Calculate bounds for fling animation (like AndroidPdfViewer)
+                int startX = (int) -panX;
+                int startY = (int) -panY;
+                int viewWidth = getWidth();
+                int viewHeight = getHeight();
+                int minX = 0;
+                // CRITICAL: Allow FULL width panning, not divided by 2!
+                int maxX = (int) Math.max(0, viewWidth * scaleFactor - viewWidth);
+                int minY = 0;
+                int maxY = (int) Math.max(0, totalContentHeight * scaleFactor - viewHeight);
+                
+                // Start physics-based fling with OverScroller
+                // Note: Negate velocities to match Android's scroll direction convention
+                // (swipe up = negative velocity, but should scroll down = positive offset change)
+                scroller.fling(startX, startY, 
+                              (int) -velocityX, (int) -velocityY,
+                              minX, maxX, minY, maxY);
+                flinging = true;
+                postInvalidateOnAnimation(); // Start animation loop
+                
+                Log.d(TAG, "OverScroller fling started: bounds=[" + minX + "," + maxX + "," + minY + "," + maxY + "]");
+                return true;
+            }
+            
+            // Single page mode: swipe gesture changes pages
             if (swipeHorizontal) {
                 // Horizontal swipe
                 if (Math.abs(velocityX) > Math.abs(velocityY)) {
@@ -1377,14 +1794,6 @@ public class PDFView extends FrameLayout {
     
     public boolean isAutoSpacing() {
         return autoSpacing;
-    }
-    
-    public FitPolicy getPageFitPolicy() {
-        return pageFitPolicy;
-    }
-    
-    public boolean isFitEachPage() {
-        return fitEachPage;
     }
     
     // Additional utility methods

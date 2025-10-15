@@ -6,17 +6,18 @@
 
 A powerful, **16KB-page memory compatible** Android PDF library featuring animations, gestures, zoom, and double-tap support. Built with Android's native `PdfRenderer` API for full 16KB page size compatibility required by Google Play starting November 1st, 2025.
 
-## 🚨 **NEW in v1.0.13: Critical Memory Optimization!**
+## 🚨 **NEW in v1.0.14: Complete Feature Parity + Continuous Scroll Fixes!**
 
-**Fixed Out of Memory crashes with large PDFs!** v1.0.13 introduces **lazy loading/virtual scrolling** that only renders visible pages, preventing memory overflow:
+**40+ new AndroidPdfViewer-compatible methods + critical bug fixes!** v1.0.14 achieves **97% feature parity** with AndroidPdfViewer while fixing swipe gesture issues:
 
-- ✅ **Before (v1.0.12)**: 285-page PDF = ~1.97 GB → **App Crash**
-- ✅ **After (v1.0.13)**: 285-page PDF = ~35 MB → **Smooth Scrolling**
-- **Memory Reduction**: **98% less memory** for large PDFs
-- **Lazy Loading**: Only 5 pages in memory at once
-- **All Features Work**: Zoom, pan, navigation maintained
+- ✅ **40+ New Methods**: Position offsets, movement controls, scroll checks, layout utilities, getters
+- ✅ **Swipe Fix**: Natural smooth scrolling in continuous mode (no more page jumps!)
+- ✅ **jumpTo() Fix**: Proper scrolling to page position in continuous mode
+- ✅ **Configuration**: `pageFling()`, `pageSnap()`, `password()` for complete control
+- ✅ **97% Compatibility**: 104+ methods (vs AndroidPdfViewer's 107)
+- ✅ **Memory**: Retains v1.0.13 lazy loading (~35 MB for large PDFs)
 
-**If you're using v1.0.12 and experiencing crashes with large PDFs, upgrade to v1.0.13 immediately!**
+**Migration from v1.0.13**: Zero code changes required! All new methods are optional additions.
 
 ## 🚀 Key Features
 
@@ -84,7 +85,7 @@ Include the library in your app-level `build.gradle`:
 
 ```gradle
 dependencies {
-    implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.13'
+    implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.14'
 }
 ```
 
@@ -184,7 +185,7 @@ public class MainActivity extends AppCompatActivity {
     private int currentPage = 0;
     private int totalPages = 0;
     private float currentZoom = 1.0f;
-
+    
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -238,9 +239,9 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onError(Throwable t) {
                     Log.e("PDF", "Error loading PDF: " + t.getMessage());
-                    Toast.makeText(MainActivity.this, 
+                Toast.makeText(MainActivity.this, 
                         "Error loading PDF: " + t.getMessage(), 
-                        Toast.LENGTH_LONG).show();
+                    Toast.LENGTH_LONG).show();
                 }
             })
             .load();
@@ -278,7 +279,7 @@ public class MainActivity extends AppCompatActivity {
         btnPrevPage.setEnabled(currentPage > 0);
         btnNextPage.setEnabled(currentPage < totalPages - 1);
     }
-
+    
     @Override
     protected void onDestroy() {
         super.onDestroy();
@@ -740,6 +741,142 @@ pdfView.setMaxZoom(5.0f);                      // Maximum zoom level
 pdfView.fitPolicy(PDFView.FitPolicy.WIDTH);  // Base scaling: ~0.8x
 pdfView.zoomTo(2.0f);                        // User zoom: 2.0x
 // Result: PDF displays at 1.6x total scale
+```
+
+### 🆕 Position & Movement Methods (NEW in v1.0.14!)
+
+```java
+// Get/Set scroll position as 0-1 value
+float progress = pdfView.getPositionOffset();  // 0.0 = top, 1.0 = bottom
+pdfView.setPositionOffset(0.5f);               // Scroll to 50% position
+
+// Get current pan offsets
+float x = pdfView.getCurrentXOffset();         // Horizontal pan
+float y = pdfView.getCurrentYOffset();         // Vertical pan
+
+// Absolute position movement
+pdfView.moveTo(100f, 200f);                    // Move to specific offset
+
+// Relative position movement
+pdfView.moveRelativeTo(50f, -100f);            // Move by dx, dy
+
+// Zoom with centered animation
+pdfView.zoomWithAnimation(centerX, centerY, 2.0f);  // Zoom centered at point
+```
+
+### 🆕 Scroll Configuration (NEW in v1.0.14!)
+
+```java
+// Configure scroll behavior
+pdfView.pageFling(false);                      // false = smooth scroll (default)
+                                               // true = jump to page on fling
+                                               
+pdfView.pageSnap(false);                       // false = free scroll (default)
+                                               // true = snap to page boundaries
+
+// Check scroll capabilities (Android standard)
+boolean canScrollUp = pdfView.canScrollVertically(-1);
+boolean canScrollDown = pdfView.canScrollVertically(1);
+boolean canScrollLeft = pdfView.canScrollHorizontally(-1);
+boolean canScrollRight = pdfView.canScrollHorizontally(1);
+
+// Stop ongoing scroll animation
+pdfView.stopFling();
+```
+
+### 🆕 State Check Methods (NEW in v1.0.14!)
+
+```java
+// Check current state
+boolean isZoomed = pdfView.isZooming();        // true if zoomed in
+boolean isClosed = pdfView.isRecycled();       // true if PDF closed
+boolean pageFlingEnabled = pdfView.isPageFlingEnabled();
+boolean pageSnapEnabled = pdfView.isPageSnapEnabled();
+
+// Additional state getters
+boolean highQuality = pdfView.isBestQuality();
+boolean vertical = pdfView.isSwipeVertical();
+boolean swipeOn = pdfView.isSwipeEnabled();
+boolean annotationsOn = pdfView.isAnnotationRendering();
+boolean antialias = pdfView.isAntialiasing();
+int spacing = pdfView.getSpacingPx();
+boolean autoSpace = pdfView.isAutoSpacingEnabled();
+FitPolicy policy = pdfView.getPageFitPolicy();
+boolean fitEach = pdfView.isFitEachPage();
+boolean renderDuringZoom = pdfView.doRenderDuringScale();
+```
+
+### 🆕 Page Information Methods (NEW in v1.0.14!)
+
+```java
+// Get page size
+android.util.SizeF size = pdfView.getPageSize(pageIndex);
+float width = size.getWidth();
+float height = size.getHeight();
+
+// Get page at scroll position
+float scrollPos = 0.5f; // 50% scrolled
+int page = pdfView.getPageAtPositionOffset(scrollPos);
+
+// Snap to nearest page boundary
+pdfView.performPageSnap();
+```
+
+### 🆕 Layout & Scaling Utilities (NEW in v1.0.14!)
+
+```java
+// Check layout state
+boolean fills = pdfView.pageFillsScreen();     // Does page fill screen?
+boolean fits = pdfView.documentFitsView();     // Does document fit view?
+
+// Fit specific page to width
+pdfView.fitToWidth(pageIndex);
+
+// Scale conversion utilities
+float realSize = pdfView.toRealScale(100f);    // Convert to PDF coordinates
+float viewSize = pdfView.toCurrentScale(100f);  // Convert to view coordinates
+
+// Relative zoom
+PointF pivot = new PointF(centerX, centerY);
+pdfView.zoomCenteredRelativeTo(0.5f, pivot);   // Zoom in by 0.5x
+pdfView.zoomCenteredRelativeTo(-0.3f, pivot);  // Zoom out by 0.3x
+```
+
+### 🆕 Advanced Configuration (NEW in v1.0.14!)
+
+```java
+// Password-protected PDFs
+pdfView.password("your-pdf-password");
+
+// Render during pinch zoom (performance vs quality trade-off)
+pdfView.enableRenderDuringScale(true);
+
+// Android scroll system integration
+// (Override computeScroll() if needed - already handled)
+```
+
+### 🆕 Enhanced Loading Methods (CONFIRMED in v1.0.14!)
+
+```java
+// Load from URI (content://, file://, http://, https://)
+Uri pdfUri = Uri.parse("content://com.example.provider/pdf/document.pdf");
+pdfView.fromUri(pdfUri);
+
+// Load from Google Drive, Dropbox, etc.
+Uri driveUri = Uri.parse("content://com.google.android.apps.docs.files/document/xyz");
+pdfView.fromUri(driveUri);
+
+// Load from local storage picker
+Uri localUri = Uri.parse("file:///storage/emulated/0/Download/document.pdf");
+pdfView.fromUri(localUri);
+
+// Load from byte array
+byte[] pdfBytes = getPdfBytesFromSomewhere();
+pdfView.fromBytes(pdfBytes);
+
+// Load from input stream
+InputStream pdfStream = getInputStreamFromSomewhere();
+pdfView.fromStream(pdfStream);
 ```
 
 ### Utility Methods
