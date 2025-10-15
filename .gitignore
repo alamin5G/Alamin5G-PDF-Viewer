@@ -33,3 +33,5 @@ publish_local.sh
 # Build outputs
 *.aar
 *.apk
+prompts.txt
+*.md
