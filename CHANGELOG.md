@@ -119,8 +119,6 @@ implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.14'
 
 ### Reference
 - Compared feature-by-feature with AndroidPdfViewer 3.2.0-beta.1
-- See `FEATURE_COMPARISON_COMPLETE.md` for detailed comparison table
-- See `FEATURE_GAP_PRIORITY.md` for implementation priority roadmap
 
 ---
 

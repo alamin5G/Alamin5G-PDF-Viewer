@@ -948,7 +948,27 @@ No additional ProGuard rules needed. The library is fully compatible with code o
 
 ## 📋 Version History & Features
 
-### 🎨 v1.0.12 - Latest (2025-10-10) - DYNAMIC HIGH-QUALITY RENDERING
+### 🎯 v1.0.14 - Latest (2025-10-15) - COMPLETE FEATURE PARITY + CONTINUOUS SCROLL FIXES
+- **🎯 40+ New Methods**: Achieved 97% feature parity with AndroidPdfViewer (104+ methods)
+- **🚨 Swipe Gesture Fix**: Natural smooth scrolling in continuous mode (no more page jumps!)
+- **🚨 jumpTo() Fix**: Proper scrolling to page position in continuous mode
+- **📍 Position & Movement**: `getPositionOffset()`, `moveTo()`, `moveRelativeTo()` methods
+- **⚙️ Configuration Options**: `pageFling()`, `pageSnap()`, `password()` for complete control
+- **🔍 Enhanced Zoom**: `zoomWithAnimation(x, y, scale)`, `zoomCenteredRelativeTo()` methods
+- **📜 Scroll Control**: `canScrollHorizontally()`, `canScrollVertically()`, `stopFling()`, `computeScroll()`
+- **📄 Page Information**: `getPageSize()`, `getPageAtPositionOffset()`, `performPageSnap()`
+- **🔐 State Getters**: 13 new getter methods for complete API coverage
+- **💾 Memory Efficient**: Retains v1.0.13 lazy loading (~35 MB for large PDFs)
+
+### 🚨 v1.0.13 (2025-10-15) - CRITICAL OOM FIX
+- **🚨 CRITICAL FIX**: Solved Out of Memory crash with large PDFs (100-300+ pages)
+- **🔄 Lazy Loading**: Only renders visible pages + 1-page buffer (before/after)
+- **📊 Smart Caching**: LinkedHashMap with automatic LRU eviction (5-page cache)
+- **💾 Memory Optimized**: Reduced from ~2 GB to ~35 MB for 285-page PDF
+- **⚡ Instant Loading**: Lightweight offset calculation for all pages (no upfront rendering)
+- **🎯 Virtual Scrolling**: Pages loaded on-demand as user scrolls
+
+### 🎨 v1.0.12 (2025-10-10) - DYNAMIC HIGH-QUALITY RENDERING
 - **🎨 Dynamic Quality Rendering**: Pages automatically re-render at zoom resolution
 - **🔍 No More Pixelation**: Text and images stay crisp at all zoom levels
 - **🎯 Centered Zoom**: Zoom centers around touch point like Adobe Reader
@@ -985,6 +1005,24 @@ No additional ProGuard rules needed. The library is fully compatible with code o
 - **Performance**: LRU caching, hardware acceleration
 - **Gestures**: Pinch-to-zoom, double-tap, swipe navigation
 
+## ⚠️ Important: Update from v1.0.12 or Earlier
+
+**If you're using v1.0.12 or earlier, update to v1.0.14 immediately:**
+
+- ✅ **v1.0.13** fixes critical OOM crashes with large PDFs (100+ pages)
+  - Memory usage reduced from ~2 GB to ~35 MB for 285-page PDF
+  - Lazy loading prevents app crashes with large documents
+  
+- ✅ **v1.0.14** adds 40+ methods and fixes continuous scrolling issues
+  - 97% feature parity with AndroidPdfViewer
+  - Natural smooth scrolling in continuous mode
+  - Complete API coverage with position, movement, and configuration methods
+
+**Update now:**
+```gradle
+implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.14'
+```
+
 ## 🚨 Critical Bug Fixes in v1.0.9
 
 ### ⚠️ IMPORTANT: Update from v1.0.7/v1.0.8 Immediately!
@@ -1017,7 +1055,7 @@ pdfView.setCacheSize(10);  // Now available!
 implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.7'
 
 // NEW (stable and safe)
-implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.12'
+implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.14'
 ```
 
 ## 🔧 Troubleshooting
@@ -1109,7 +1147,7 @@ pdfView.fromAsset("document.pdf")
 // implementation 'com.github.barteksc:android-pdf-viewer:3.2.0-beta.1'
 
 // NEW (16KB compatible):
-implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.7'
+implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.14'
 
 // API is similar, just change import:
 // OLD: import com.github.barteksc.pdfviewer.PDFView;
