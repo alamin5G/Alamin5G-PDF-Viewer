@@ -6,6 +6,18 @@
 
 A powerful, **16KB-page memory compatible** Android PDF library featuring animations, gestures, zoom, and double-tap support. Built with Android's native `PdfRenderer` API for full 16KB page size compatibility required by Google Play starting November 1st, 2025.
 
+## 🚨 **NEW in v1.0.13: Critical Memory Optimization!**
+
+**Fixed Out of Memory crashes with large PDFs!** v1.0.13 introduces **lazy loading/virtual scrolling** that only renders visible pages, preventing memory overflow:
+
+- ✅ **Before (v1.0.12)**: 285-page PDF = ~1.97 GB → **App Crash**
+- ✅ **After (v1.0.13)**: 285-page PDF = ~35 MB → **Smooth Scrolling**
+- **Memory Reduction**: **98% less memory** for large PDFs
+- **Lazy Loading**: Only 5 pages in memory at once
+- **All Features Work**: Zoom, pan, navigation maintained
+
+**If you're using v1.0.12 and experiencing crashes with large PDFs, upgrade to v1.0.13 immediately!**
+
 ## 🚀 Key Features
 
 ### ✅ 16KB Page Size Compatibility
@@ -72,7 +84,7 @@ Include the library in your app-level `build.gradle`:
 
 ```gradle
 dependencies {
-    implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.12'
+    implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.13'
 }
 ```
 

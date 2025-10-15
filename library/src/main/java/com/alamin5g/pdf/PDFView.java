@@ -98,6 +98,25 @@ public class PDFView extends FrameLayout {
     private static final int DEFAULT_CACHE_SIZE = 10; // Default cache size
     private int cacheSize = DEFAULT_CACHE_SIZE; // Configurable cache size
     
+    // Lazy loading for continuous mode (v1.0.13 - Memory optimization)
+    private static final int MAX_CACHED_PAGES = 5; // Maximum pages in memory at once (optimized for 35 MB)
+    private final java.util.Map<Integer, Bitmap> continuousPageCache = new java.util.LinkedHashMap<Integer, Bitmap>(MAX_CACHED_PAGES + 1, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(java.util.Map.Entry<Integer, Bitmap> eldest) {
+            if (size() > MAX_CACHED_PAGES) {
+                if (eldest.getValue() != null && !eldest.getValue().isRecycled()) {
+                    eldest.getValue().recycle();
+                    Log.d(TAG, "Recycled page " + eldest.getKey() + " from cache");
+                }
+                return true;
+            }
+            return false;
+        }
+    };
+    private int visibleStartPage = 0;
+    private int visibleEndPage = 0;
+    private float lastRenderedZoom = 1.0f; // Track zoom for quality re-rendering
+    
     // Listeners
     private OnLoadCompleteListener onLoadCompleteListener;
     private OnPageChangeListener onPageChangeListener;
@@ -199,9 +218,9 @@ public class PDFView extends FrameLayout {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         
-        if (continuousScrollMode && !pageBitmaps.isEmpty()) {
-            // Continuous scroll mode - draw all pages with zoom support
-            Log.d(TAG, "onDraw - continuous mode, " + pageBitmaps.size() + " pages, panY: " + panY + ", zoom: " + scaleFactor);
+        if (continuousScrollMode && !pageOffsets.isEmpty()) {
+            // v1.0.13: Continuous scroll mode - draw only cached/visible pages (lazy loading)
+            Log.d(TAG, "onDraw - continuous mode, cache size: " + continuousPageCache.size() + ", panY: " + panY + ", zoom: " + scaleFactor);
             
             canvas.save();
             
@@ -209,12 +228,12 @@ public class PDFView extends FrameLayout {
             // So we only need to apply pan offsets, not scaling
             canvas.translate(panX, panY);
             
-            // Draw all pages at their native resolution (already zoomed)
-            for (int i = 0; i < pageBitmaps.size(); i++) {
-                Bitmap bitmap = pageBitmaps.get(i);
-                float yOffset = pageOffsets.get(i);
+            // Draw only cached pages (lazy loaded)
+            for (int i = 0; i < pageOffsets.size(); i++) {
+                Bitmap bitmap = continuousPageCache.get(i);
                 
                 if (bitmap != null && !bitmap.isRecycled()) {
+                    float yOffset = pageOffsets.get(i);
                     canvas.drawBitmap(bitmap, 0, yOffset, paint);
                 }
             }
@@ -249,11 +268,12 @@ public class PDFView extends FrameLayout {
         super.onSizeChanged(w, h, oldw, oldh);
         Log.d(TAG, "View size changed: " + w + "x" + h);
         
-        // If we have a PDF loaded but no bitmap (due to previous zero dimensions), render now
+        // v1.0.13: If we have a PDF loaded but no bitmap (due to previous zero dimensions), render now
         if (pdfRenderer != null && w > 0 && h > 0) {
-            if (continuousScrollMode && pageBitmaps.isEmpty()) {
-                Log.d(TAG, "View now has valid dimensions, rendering all pages");
-                renderAllPages();
+            if (continuousScrollMode && pageOffsets.isEmpty()) {
+                Log.d(TAG, "View now has valid dimensions, initializing page offsets and rendering visible pages");
+                initializePageOffsets();
+                renderVisiblePages();
             } else if (!continuousScrollMode && currentBitmap == null) {
                 Log.d(TAG, "View now has valid dimensions, rendering current page: " + currentPage);
                 renderPage(currentPage);
@@ -496,8 +516,10 @@ public class PDFView extends FrameLayout {
                 onLoadCompleteListener.loadComplete(totalPages);
             }
             
+            // v1.0.13: Use lazy loading for continuous mode
             if (continuousScrollMode) {
-                renderAllPages();
+                initializePageOffsets();
+                renderVisiblePages();
             } else {
                 renderPage(currentPage);
             }
@@ -783,9 +805,6 @@ public class PDFView extends FrameLayout {
         }).start();
     }
     
-    // Track last rendered zoom level to know when to re-render
-    private float lastRenderedZoom = 1.0f;
-    
     /**
      * Zoom centered to a pivot point (like Adobe Reader)
      * This makes the zoom feel natural - zooming around the touch point
@@ -826,12 +845,16 @@ public class PDFView extends FrameLayout {
             panY = Math.max(-maxPanY, Math.min(0, panY));
         }
         
-        // Re-render pages at higher quality if zoom increased significantly
+        // v1.0.13: Re-render visible pages at higher quality if zoom increased significantly
         // This prevents pixelation when zooming in
         if (continuousScrollMode && Math.abs(scaleFactor - lastRenderedZoom) > 0.3f) {
-            Log.d(TAG, "Zoom changed significantly (" + lastRenderedZoom + " -> " + scaleFactor + "), re-rendering for quality");
+            Log.d(TAG, "Zoom changed significantly (" + lastRenderedZoom + " -> " + scaleFactor + "), re-rendering visible pages for quality");
             lastRenderedZoom = scaleFactor;
-            renderAllPages();
+            
+            // Clear cache and re-initialize offsets at new zoom level
+            continuousPageCache.clear();
+            initializePageOffsets();
+            renderVisiblePages();
         } else {
             invalidate();
         }
@@ -870,62 +893,143 @@ public class PDFView extends FrameLayout {
         }
     }
     
-    private void renderAllPages() {
+    /**
+     * v1.0.13: Initialize page offsets without rendering bitmaps (lightweight operation)
+     * This calculates positions for ALL pages but doesn't create any bitmaps yet
+     */
+    private void initializePageOffsets() {
         if (pdfRenderer == null || getWidth() == 0 || getHeight() == 0) {
-            Log.w(TAG, "Cannot render all pages yet - waiting for layout");
+            Log.w(TAG, "Cannot initialize page offsets yet - waiting for layout");
             return;
         }
         
-        Log.d(TAG, "Rendering all " + totalPages + " pages for continuous scroll at zoom: " + scaleFactor);
-        
-        // Recycle old bitmaps to free memory
-        for (Bitmap oldBitmap : pageBitmaps) {
-            if (oldBitmap != null && !oldBitmap.isRecycled()) {
-                oldBitmap.recycle();
-            }
-        }
-        
-        // Clear previous bitmaps
-        pageBitmaps.clear();
         pageOffsets.clear();
-        
         float currentY = 0f;
         float viewWidth = getWidth();
         
+        Log.d(TAG, "Initializing page offsets for " + totalPages + " pages (no rendering yet)");
+        
         for (int i = 0; i < totalPages; i++) {
+            pageOffsets.add(currentY);
+            
+            // Calculate height without rendering bitmap (very cheap operation)
             try {
                 PdfRenderer.Page page = pdfRenderer.openPage(i);
-                
-                // Calculate bitmap size based on fit policy AND current zoom
-                // This ensures high quality at all zoom levels!
                 int width = (int) (viewWidth * scaleFactor);
                 int height = (int) (width * (float) page.getHeight() / page.getWidth());
-                
-                // Create bitmap at zoomed resolution for quality
-                Bitmap.Config config = useBestQuality ? Bitmap.Config.ARGB_8888 : Bitmap.Config.RGB_565;
-                Bitmap bitmap = Bitmap.createBitmap(width, height, config);
-                
-                // Render the page at high resolution
-                int renderMode = enableAnnotationRendering ? 
-                    PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY : 
-                    PdfRenderer.Page.RENDER_MODE_FOR_PRINT;
-                page.render(bitmap, null, null, renderMode);
                 page.close();
                 
-                // Store bitmap and offset
-                pageBitmaps.add(bitmap);
-                pageOffsets.add(currentY);
-                
                 currentY += height + spacing;
-                
-                Log.d(TAG, "Rendered page " + i + " at offset " + pageOffsets.get(i));
             } catch (Exception e) {
-                Log.e(TAG, "Error rendering page " + i + ": " + e.getMessage());
+                Log.e(TAG, "Error calculating page offset: " + e.getMessage());
+                currentY += 1681 + spacing; // Default height fallback
             }
         }
         
         totalContentHeight = currentY;
-        Log.d(TAG, "All pages rendered, total height: " + totalContentHeight);
+        Log.d(TAG, "Page offsets initialized, total height: " + totalContentHeight);
+    }
+    
+    /**
+     * v1.0.13: Calculate which pages are currently visible on screen
+     */
+    private void calculateVisiblePages() {
+        float viewHeight = getHeight();
+        float scrollY = Math.abs(panY);
+        
+        visibleStartPage = 0;
+        visibleEndPage = 0;
+        
+        boolean foundStart = false;
+        
+        for (int i = 0; i < pageOffsets.size(); i++) {
+            float pageTop = pageOffsets.get(i);
+            
+            // Estimate page height (check cache or use default)
+            float pageHeight;
+            Bitmap cachedBitmap = continuousPageCache.get(i);
+            if (cachedBitmap != null && !cachedBitmap.isRecycled()) {
+                pageHeight = cachedBitmap.getHeight();
+            } else if (i < pageOffsets.size() - 1) {
+                pageHeight = pageOffsets.get(i + 1) - pageTop - spacing;
+            } else {
+                pageHeight = 1681; // Default height
+            }
+            
+            float pageBottom = pageTop + pageHeight;
+            
+            // Check if page is visible
+            if (pageBottom >= scrollY && pageTop <= scrollY + viewHeight) {
+                if (!foundStart) {
+                    visibleStartPage = i;
+                    foundStart = true;
+                }
+                visibleEndPage = i;
+            }
+        }
+        
+        Log.d(TAG, "Visible pages: " + visibleStartPage + " to " + visibleEndPage + " (scroll: " + scrollY + ")");
+    }
+    
+    /**
+     * v1.0.13: Render a single page and add to cache
+     */
+    private void renderSinglePage(int pageIndex) {
+        if (pdfRenderer == null || pageIndex < 0 || pageIndex >= totalPages) {
+            return;
+        }
+        
+        try {
+            PdfRenderer.Page page = pdfRenderer.openPage(pageIndex);
+            
+            float viewWidth = getWidth();
+            int width = (int) (viewWidth * scaleFactor);
+            int height = (int) (width * (float) page.getHeight() / page.getWidth());
+            
+            Bitmap.Config config = useBestQuality ? Bitmap.Config.ARGB_8888 : Bitmap.Config.RGB_565;
+            Bitmap bitmap = Bitmap.createBitmap(width, height, config);
+            
+            int renderMode = enableAnnotationRendering ?
+                PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY :
+                PdfRenderer.Page.RENDER_MODE_FOR_PRINT;
+            page.render(bitmap, null, null, renderMode);
+            page.close();
+            
+            // Add to cache (automatically removes oldest if cache is full)
+            continuousPageCache.put(pageIndex, bitmap);
+            
+            Log.d(TAG, "Rendered page " + pageIndex + " (" + width + "x" + height + ") - Cache size: " + continuousPageCache.size());
+        } catch (Exception e) {
+            Log.e(TAG, "Error rendering page " + pageIndex + ": " + e.getMessage());
+        }
+    }
+    
+    /**
+     * v1.0.13: Render only visible pages (lazy loading - FIXES OOM CRASH!)
+     * This replaces renderAllPages() to prevent memory overflow with large PDFs
+     */
+    private void renderVisiblePages() {
+        if (pdfRenderer == null || getWidth() == 0 || getHeight() == 0) {
+            Log.w(TAG, "Cannot render visible pages yet - waiting for layout");
+            return;
+        }
+        
+        // Calculate which pages are currently visible
+        calculateVisiblePages();
+        
+        // Render visible pages + buffer (1 page before/after for smooth scrolling)
+        int startPage = Math.max(0, visibleStartPage - 1);
+        int endPage = Math.min(totalPages - 1, visibleEndPage + 1);
+        
+        Log.d(TAG, "Rendering pages " + startPage + " to " + endPage + " (visible: " + visibleStartPage + "-" + visibleEndPage + ") at zoom: " + scaleFactor);
+        
+        // Only render pages that aren't already cached
+        for (int i = startPage; i <= endPage; i++) {
+            if (!continuousPageCache.containsKey(i)) {
+                renderSinglePage(i);
+            }
+        }
+        
         invalidate();
     }
     
@@ -1149,7 +1253,9 @@ public class PDFView extends FrameLayout {
                 panX = Math.max(-maxPanX, Math.min(maxPanX, panX));
                 panY = Math.max(-maxPanY, Math.min(0, panY));
                 
-                invalidate();
+                // v1.0.13: Trigger lazy loading when scrolling
+                renderVisiblePages();
+                
                 Log.d(TAG, "Continuous scrolling - pan: (" + panX + ", " + panY + "), zoom: " + scaleFactor);
                 return true;
             } else if (scaleFactor > 1.0f) {
