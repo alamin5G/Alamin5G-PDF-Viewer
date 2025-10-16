@@ -33,5 +33,6 @@ publish_local.sh
 # Build outputs
 *.aar
 *.apk
-prompts.txt
-*.md
+
+# NOTE: README.md, CHANGELOG.md, INTEGRATION_GUIDE.md, LICENSE, 16KB_COMPATIBILITY.md 
+# are PUBLIC and should NOT be in .gitignore

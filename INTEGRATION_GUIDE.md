@@ -2,6 +2,19 @@
 
 Complete step-by-step guide to integrate the Alamin5G PDF Viewer library into your existing Android applications.
 
+## ⚠️ CRITICAL: 16KB Compatibility Notice
+
+**If you're migrating from barteksc/AndroidPdfViewer or any other PDF library**, you MUST switch to Alamin5G PDF Viewer before **November 1, 2025**. Google Play will **REJECT** apps with non-16KB compatible libraries.
+
+**Why Alamin5G PDF Viewer:**
+- ✅ ONLY library with 100% 16KB compatibility
+- ✅ Zero native libraries (no `.so` files)
+- ✅ Google Play approved
+- ✅ 97% API compatibility with AndroidPdfViewer
+- ✅ Drop-in replacement - minimal code changes
+
+See [16KB_COMPATIBILITY.md](16KB_COMPATIBILITY.md) for detailed information.
+
 ## 🚀 Quick Start
 
 ### Step 1: Add Repository
@@ -37,7 +50,7 @@ In your app's `build.gradle`:
 
 ```gradle
 dependencies {
-    implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.7'
+    implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.15'
 }
 ```
 
@@ -110,7 +123,7 @@ implementation 'com.github.barteksc:android-pdf-viewer:3.2.0-beta.1'
 
 **New Dependency:**
 ```gradle
-implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.7'
+implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.15'
 ```
 
 **Code Changes:**

@@ -45,6 +45,7 @@ public class PDFView extends FrameLayout {
     private ParcelFileDescriptor fileDescriptor;
     private int currentPage = 0;
     private int totalPages = 0;
+    private int previousPage = -1; // v1.0.15: Track for page change detection
     
     // Configuration
     private boolean enableSwipe = true;
@@ -108,7 +109,7 @@ public class PDFView extends FrameLayout {
     private int cacheSize = DEFAULT_CACHE_SIZE; // Configurable cache size
     
     // Lazy loading for continuous mode (v1.0.13 - Memory optimization)
-    private static final int MAX_CACHED_PAGES = 7; // Maximum pages in memory at once (~49 MB for smooth scrolling)
+    private static final int MAX_CACHED_PAGES = 12; // v1.0.15: Increased from 7 to 12 (~84 MB for smoother scrolling)
     private final java.util.Map<Integer, Bitmap> continuousPageCache = new java.util.LinkedHashMap<Integer, Bitmap>(MAX_CACHED_PAGES + 1, 0.75f, true) {
         @Override
         protected boolean removeEldestEntry(java.util.Map.Entry<Integer, Bitmap> eldest) {
@@ -565,6 +566,9 @@ public class PDFView extends FrameLayout {
     public PDFView fromAsset(String assetName) {
         try {
             Log.d(TAG, "Loading PDF from asset: " + assetName);
+            Log.e(TAG, "==========================================");
+            Log.e(TAG, "fromAsset() called - Asset: " + assetName);
+            Log.e(TAG, "==========================================");
             
             // Read the asset as input stream and create a temporary file
             InputStream inputStream = getContext().getAssets().open(assetName);
@@ -589,6 +593,7 @@ public class PDFView extends FrameLayout {
             
             totalPages = pdfRenderer.getPageCount();
             currentPage = defaultPage;
+            previousPage = -1; // v1.0.15: Reset tracking
             
             // Adjust total pages if custom page order is specified
             if (pages != null) {
@@ -596,6 +601,9 @@ public class PDFView extends FrameLayout {
             }
             
             Log.d(TAG, "PDF loaded successfully with " + totalPages + " pages");
+            Log.e(TAG, "==========================================");
+            Log.e(TAG, "PDF LOADED FROM ASSET: " + totalPages + " pages");
+            Log.e(TAG, "==========================================");
             
             if (onLoadCompleteListener != null) {
                 onLoadCompleteListener.loadComplete(totalPages);
@@ -605,8 +613,22 @@ public class PDFView extends FrameLayout {
             if (continuousScrollMode) {
                 initializePageOffsets();
                 renderVisiblePages();
+                
+                // v1.0.15: Trigger initial page change event
+                if (onPageChangeListener != null) {
+                    onPageChangeListener.onPageChanged(currentPage, totalPages);
+                    Log.d(TAG, "Initial page change event: page " + (currentPage + 1) + " of " + totalPages);
+                    Log.e(TAG, "INITIAL PAGE CHANGE EVENT: page " + (currentPage + 1) + " of " + totalPages);
+                }
             } else {
                 renderPage(currentPage);
+                
+                // v1.0.15: Trigger initial page change event
+                if (onPageChangeListener != null) {
+                    onPageChangeListener.onPageChanged(currentPage, totalPages);
+                    Log.d(TAG, "Initial page change event: page " + (currentPage + 1) + " of " + totalPages);
+                    Log.e(TAG, "INITIAL PAGE CHANGE EVENT: page " + (currentPage + 1) + " of " + totalPages);
+                }
             }
             
         } catch (IOException e) {
@@ -627,6 +649,7 @@ public class PDFView extends FrameLayout {
             
             totalPages = pdfRenderer.getPageCount();
             currentPage = defaultPage;
+            previousPage = -1; // v1.0.15: Reset tracking
             
             // Adjust total pages if custom page order is specified
             if (pages != null) {
@@ -641,6 +664,12 @@ public class PDFView extends FrameLayout {
             
             renderPage(currentPage);
             
+            // v1.0.15: Trigger initial page change event
+            if (onPageChangeListener != null) {
+                onPageChangeListener.onPageChanged(currentPage, totalPages);
+                Log.d(TAG, "Initial page change event: page " + (currentPage + 1) + " of " + totalPages);
+            }
+            
         } catch (IOException e) {
             Log.e(TAG, "Error loading PDF from file: " + e.getMessage());
             if (onErrorListener != null) {
@@ -653,6 +682,7 @@ public class PDFView extends FrameLayout {
     public PDFView fromBytes(byte[] bytes) {
         try {
             Log.d(TAG, "Loading PDF from bytes: " + bytes.length + " bytes");
+            Log.e(TAG, "fromBytes() called - size: " + bytes.length + " bytes"); // v1.0.15: Diagnostic
             
             // Create a temporary file from bytes
             File tempFile = File.createTempFile("pdf_temp", ".pdf", getContext().getCacheDir());
@@ -660,10 +690,12 @@ public class PDFView extends FrameLayout {
             outputStream.write(bytes);
             outputStream.close();
             
+            Log.e(TAG, "fromBytes() - temp file created, calling fromFile()");
             return fromFile(tempFile);
             
         } catch (IOException e) {
             Log.e(TAG, "Error loading PDF from bytes: " + e.getMessage());
+            Log.e(TAG, "Full error: " + android.util.Log.getStackTraceString(e));
             if (onErrorListener != null) {
                 onErrorListener.onError(e);
             }
@@ -674,17 +706,60 @@ public class PDFView extends FrameLayout {
     public PDFView fromUri(android.net.Uri uri) {
         try {
             Log.d(TAG, "Loading PDF from URI: " + uri.toString());
+            Log.e(TAG, "fromUri() called - URI: " + uri); // v1.0.15: Diagnostic
             
-            // Open input stream from URI
-            InputStream inputStream = getContext().getContentResolver().openInputStream(uri);
-            if (inputStream == null) {
-                throw new IOException("Cannot open input stream from URI: " + uri);
+            // v1.0.15: Use ParcelFileDescriptor directly (matches AndroidPdfViewer)
+            // This is MUCH faster than copying to temp file!
+            ParcelFileDescriptor pfd = getContext().getContentResolver().openFileDescriptor(uri, "r");
+            if (pfd == null) {
+                throw new IOException("Cannot open file descriptor from URI: " + uri);
             }
             
-            return fromStream(inputStream);
+            // Store file descriptor for later cleanup
+            fileDescriptor = pfd;
+            pdfRenderer = new PdfRenderer(fileDescriptor);
+            
+            totalPages = pdfRenderer.getPageCount();
+            currentPage = defaultPage;
+            previousPage = -1; // v1.0.15: Reset tracking
+            
+            // Adjust total pages if custom page order is specified
+            if (pages != null) {
+                totalPages = pages.length;
+            }
+            
+            Log.d(TAG, "PDF loaded successfully from URI with " + totalPages + " pages");
+            Log.e(TAG, "PDF loaded successfully from URI with " + totalPages + " pages");
+            
+            if (onLoadCompleteListener != null) {
+                onLoadCompleteListener.loadComplete(totalPages);
+            }
+            
+            // v1.0.13: Use lazy loading for continuous mode
+            if (continuousScrollMode) {
+                initializePageOffsets();
+                renderVisiblePages();
+                
+                // v1.0.15: Trigger initial page change event
+                if (onPageChangeListener != null) {
+                    onPageChangeListener.onPageChanged(currentPage, totalPages);
+                    Log.d(TAG, "Initial page change event: page " + (currentPage + 1) + " of " + totalPages);
+                    Log.e(TAG, "Initial page change event: page " + (currentPage + 1) + " of " + totalPages);
+                }
+            } else {
+                renderPage(currentPage);
+                
+                // v1.0.15: Trigger initial page change event
+                if (onPageChangeListener != null) {
+                    onPageChangeListener.onPageChanged(currentPage, totalPages);
+                    Log.d(TAG, "Initial page change event: page " + (currentPage + 1) + " of " + totalPages);
+                    Log.e(TAG, "Initial page change event: page " + (currentPage + 1) + " of " + totalPages);
+                }
+            }
             
         } catch (IOException e) {
             Log.e(TAG, "Error loading PDF from URI: " + e.getMessage());
+            Log.e(TAG, "Full error: " + android.util.Log.getStackTraceString(e));
             if (onErrorListener != null) {
                 onErrorListener.onError(e);
             }
@@ -695,6 +770,7 @@ public class PDFView extends FrameLayout {
     public PDFView fromStream(InputStream inputStream) {
         try {
             Log.d(TAG, "Loading PDF from InputStream");
+            Log.e(TAG, "fromStream() called - WARNING: This copies to temp file (slower than fromUri)"); // v1.0.15: Diagnostic
             
             // Create a temporary file from input stream
             File tempFile = File.createTempFile("pdf_temp", ".pdf", getContext().getCacheDir());
@@ -710,10 +786,12 @@ public class PDFView extends FrameLayout {
             inputStream.close();
             outputStream.close();
             
+            Log.e(TAG, "fromStream() - temp file created, calling fromFile()");
             return fromFile(tempFile);
             
         } catch (IOException e) {
             Log.e(TAG, "Error loading PDF from InputStream: " + e.getMessage());
+            Log.e(TAG, "Full error: " + android.util.Log.getStackTraceString(e));
             if (onErrorListener != null) {
                 onErrorListener.onError(e);
             }
@@ -883,6 +961,10 @@ public class PDFView extends FrameLayout {
         if (continuousScrollMode) {
             renderVisiblePages();
         }
+        
+        // v1.0.15: Check for page change (matches AndroidPdfViewer)
+        loadPageByOffset();
+        
         invalidate();
         Log.d(TAG, "Position offset set to: " + progress + ", panY: " + panY);
     }
@@ -920,6 +1002,9 @@ public class PDFView extends FrameLayout {
             // Content larger - allow panning from 0 to -(contentHeight - viewHeight)
             panY = Math.max(-(contentHeight - viewHeight), Math.min(0, y));
         }
+        
+        // v1.0.15: Check for page change (matches AndroidPdfViewer)
+        loadPageByOffset();
         
         invalidate();
     }
@@ -1349,6 +1434,69 @@ public class PDFView extends FrameLayout {
     }
     
     /**
+     * v1.0.15: Detect page change during scroll (matches AndroidPdfViewer)
+     * Called after moveTo() to check if current page changed
+     */
+    private void loadPageByOffset() {
+        if (!continuousScrollMode || totalPages == 0) {
+            return;
+        }
+        
+        // Calculate screen center position
+        float offset = Math.abs(panY);
+        float screenCenter = ((float) getHeight()) / 2;
+        
+        // Find which page is at screen center
+        int newPage = getPageAtPosition(offset + screenCenter);
+        
+        // If page changed, trigger callback
+        if (newPage >= 0 && newPage < totalPages && newPage != currentPage) {
+            previousPage = currentPage;
+            currentPage = newPage;
+            
+            // Trigger listener (matches AndroidPdfViewer's showPage())
+            if (onPageChangeListener != null) {
+                onPageChangeListener.onPageChanged(currentPage, totalPages);
+            }
+            
+            Log.d(TAG, "Page changed: " + (previousPage + 1) + " → " + (currentPage + 1) + " of " + totalPages);
+            Log.e(TAG, "★ PAGE CHANGED: " + (previousPage + 1) + " → " + (currentPage + 1) + " of " + totalPages); // v1.0.15: ERROR for visibility
+        }
+    }
+    
+    /**
+     * v1.0.15: Helper to find page at Y position
+     */
+    private int getPageAtPosition(float yPosition) {
+        for (int i = 0; i < pageOffsets.size(); i++) {
+            float baseOffset = pageOffsets.get(i);
+            float pageTop = baseOffset * scaleFactor;
+            
+            // Estimate page height using same logic as calculateVisiblePages()
+            float pageHeight;
+            Bitmap cachedBitmap = continuousPageCache.get(i);
+            if (cachedBitmap != null && !cachedBitmap.isRecycled()) {
+                pageHeight = cachedBitmap.getHeight();
+            } else if (i < pageOffsets.size() - 1) {
+                float baseHeight = pageOffsets.get(i + 1) - baseOffset - spacing;
+                pageHeight = baseHeight * scaleFactor;
+            } else {
+                pageHeight = 1681 * scaleFactor; // Default height scaled
+            }
+            
+            float pageBottom = pageTop + pageHeight;
+            
+            // Check if position is within this page
+            if (yPosition >= pageTop && yPosition <= pageBottom) {
+                return i;
+            }
+        }
+        
+        // Default to first visible page
+        return visibleStartPage;
+    }
+    
+    /**
      * v1.0.13: Render a single page and add to cache
      */
     private void renderSinglePage(int pageIndex) {
@@ -1396,11 +1544,12 @@ public class PDFView extends FrameLayout {
         // Calculate which pages are currently visible
         calculateVisiblePages();
         
-        // Render visible pages + buffer (1 page before/after for smooth scrolling)
-        int startPage = Math.max(0, visibleStartPage - 1);
-        int endPage = Math.min(totalPages - 1, visibleEndPage + 1);
+        // v1.0.15: Render visible pages + buffer (2 pages before/after for smoother scrolling)
+        int startPage = Math.max(0, visibleStartPage - 2);
+        int endPage = Math.min(totalPages - 1, visibleEndPage + 2);
         
         Log.d(TAG, "Rendering pages " + startPage + " to " + endPage + " (visible: " + visibleStartPage + "-" + visibleEndPage + ") at zoom: " + scaleFactor);
+        Log.e(TAG, "Rendering pages " + startPage + " to " + endPage + " (visible: " + visibleStartPage + "-" + visibleEndPage + ")");
         
         // Only render pages that aren't already cached
         for (int i = startPage; i <= endPage; i++) {
