@@ -26,17 +26,23 @@ Native Libraries: None
 
 **THE ONLY 16KB PAGE SIZE COMPATIBLE PDF VIEWER FOR ANDROID 15+** - A powerful, production-ready Android PDF library that meets Google Play's mandatory 16KB page size requirement (November 2025). Built with Android's native `PdfRenderer` API, zero native libraries, guaranteed compatibility with Android 15, 16, and future versions. The ONLY alternative to barteksc/AndroidPdfViewer that won't get your app rejected by Google Play.
 
-## 🚨 **NEW in v1.0.15: Page Change Callback Fix + URI Performance Boost!**
+## 🚨 **NEW in v1.0.16: Callback Fix + Smooth Zoom Rendering!**
 
-**Critical bug fixes for page tracking and 20x faster URI loading!** v1.0.15 fixes the `onPageChanged()` callback that wasn't firing during scroll and optimizes URI loading performance:
+**Critical fixes for callbacks and zoom performance!** v1.0.16 fixes callbacks not firing and eliminates gaps during zoom:
 
-- ✅ **Page Change Callback**: Now fires correctly during scroll (matches AndroidPdfViewer)
-- ✅ **URI Loading 20x Faster**: Direct ParcelFileDescriptor access (no temp file copying!)
-- ✅ **Increased Cache**: 12 pages, 2-page buffer for smoother scrolling (~84 MB)
-- ✅ **Enhanced Logging**: ERROR-level logs for easier debugging
-- ✅ **Perfect Compatibility**: Page detection matches AndroidPdfViewer exactly
+- ✅ **Callbacks Now Work**: `onLoad()`, `onError()`, `onDownloadProgress()` now fire correctly ([#4](https://github.com/alamin5G/Alamin5G-PDF-Viewer/issues/4))
+- ✅ **No Zoom Gaps**: Smart caching keeps pages visible while re-rendering ([#2](https://github.com/alamin5G/Alamin5G-PDF-Viewer/issues/2))
+- ✅ **Faster Scrolling**: Increased buffer (3 pages) for smoother experience
+- ✅ **Better Performance**: Progressive rendering eliminates visual artifacts
+- ✅ **Deferred Loading**: PDF loads only when `.load()` is called (matches AndroidPdfViewer)
 
-**Migration from v1.0.14**: Zero code changes required! Just update the version number.
+**Migration from v1.0.15**: Update version number and ensure `.load()` is called **last** in your chain (see [Callback Setup Order](#️-important-callback-setup-order)).
+
+**If you experience issues with v1.0.16**, you can use v1.0.15:
+```gradle
+implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.15'
+```
+
 
 ## 🏆 Why Choose Alamin5G PDF Viewer?
 
@@ -221,7 +227,58 @@ pdfView.fromAsset("sample.pdf")
     .load();
 ```
 
-## 🔧 Advanced Usage
+## ⚠️ **IMPORTANT: Callback Setup Order**
+
+**CRITICAL**: You MUST call `.load()` as the **LAST** method in the chain, after setting up all callbacks. The library defers PDF loading until `load()` is called to ensure your callbacks are registered before loading begins.
+
+### ❌ **Incorrect Usage** (Callbacks Won't Fire!)
+
+```java
+// DON'T DO THIS - load() called before callbacks are set
+pdfView.fromUri(uri).load();  // PDF loads immediately, callbacks not set yet!
+
+// These callbacks will NEVER be called because loading already happened
+pdfView.onLoad(nbPages -> {
+    Log.d("PDF", "This will NEVER execute!");
+});
+pdfView.onError(error -> {
+    Log.e("PDF", "This will NEVER execute!");
+});
+```
+
+### ✅ **Correct Usage** (Callbacks Will Fire!)
+
+```java
+// DO THIS - load() called AFTER all callbacks are set
+pdfView.fromUri(uri)
+    .enableDoubletap(true)
+    .defaultPage(0)
+    .spacing(0)
+    .pageFitPolicy(PDFView.FitPolicy.WIDTH)
+    .onLoad(nbPages -> {
+        // ✅ This WILL be called when PDF loads
+        Log.d("PDF", "Loaded: " + nbPages + " pages");
+    })
+    .onError(error -> {
+        // ✅ This WILL be called if there's an error
+        Log.e("PDF", "Error: " + error.getMessage());
+    })
+    .load();  // ⬅️ Call load() LAST!
+```
+
+### 📖 **Why This Matters**
+
+The library follows the same pattern as AndroidPdfViewer:
+
+1. **`fromXXX()` methods** (fromUri, fromAsset, fromFile, etc.) → **Prepare** the PDF source (don't load yet)
+2. **`.onLoad()`, `.onError()`, `.onDownloadProgress()`** → **Register** your callbacks
+3. **`.load()` method** → **Actually loads** the PDF and fires callbacks
+
+This ensures your callbacks are **always registered before the PDF loads**, so you never miss events like load completion, errors, or download progress.
+
+**Fixed in v1.0.16**: This resolves [issue #4](https://github.com/alamin5G/Alamin5G-PDF-Viewer/issues/4) where callbacks weren't firing because PDFs were loading before callbacks were set.
+
+
 
 ### Complete Activity Example
 
@@ -1193,6 +1250,39 @@ pdfView.fromAsset("document.pdf")
     .enableHardwareAcceleration(false)  // Disable GPU if not needed
     .load();
 ```
+
+### Rendering Performance (v1.0.16+)
+
+The library uses **smart bitmap caching** to ensure smooth zooming and scrolling:
+
+```java
+// Optimized for smooth zoom and scroll (default behavior in v1.0.16+)
+pdfView.fromAsset("document.pdf")
+    .enableAntialiasing(true)           // Smooth rendering
+    .useBestQuality(true)               // High quality bitmaps
+    .setCacheSize(12)                   // Adequate cache for smooth experience
+    .load();
+```
+
+**How it works:**
+- ✅ **No gaps during zoom**: Old bitmaps stay visible while new ones render at correct resolution
+- ✅ **Fast page rendering**: Visible pages rendered first, buffer pages in background
+- ✅ **Memory efficient**: Old bitmaps recycled as soon as new ones are ready
+- ✅ **Increased buffer**: 3 pages before/after visible area (up from 2 in v1.0.15)
+
+**Performance Tips:**
+```java
+// For high-end devices (better performance)
+pdfView.setCacheSize(20);  // Larger cache = more pages pre-rendered
+
+// For memory-constrained devices (lower memory usage)
+pdfView.setCacheSize(8);   // Smaller cache = less memory
+```
+
+**What's Fixed in v1.0.16:**
+- ❌ **Before**: Gaps appeared during zoom for 1-3 seconds
+- ✅ **After**: Smooth zoom with no visual gaps ([#2](https://github.com/alamin5G/Alamin5G-PDF-Viewer/issues/2))
+
 
 ## 🏆 16KB Compatibility Benefits
 
