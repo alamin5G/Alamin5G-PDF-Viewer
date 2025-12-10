@@ -1144,7 +1144,16 @@ No additional ProGuard rules needed. The library is fully compatible with code o
 
 ## 📋 Version History & Features
 
-### 🐛 v1.0.15 - Latest (2025-10-16) - PAGE CHANGE CALLBACK FIX + URI PERFORMANCE
+### 🎉 v1.0.16 - Latest (2025-12-07) - CALLBACK FIX + SMOOTH ZOOM RENDERING
+- **✅ Callbacks Fixed**: `onLoad()`, `onError()`, `onDownloadProgress()` now fire correctly ([#4](https://github.com/alamin5G/Alamin5G-PDF-Viewer/issues/4))
+- **🎨 No Zoom Gaps**: Smart cache replacement keeps pages visible during re-rendering ([#2](https://github.com/alamin5G/Alamin5G-PDF-Viewer/issues/2))
+- **🚀 Deferred Loading**: PDF loads only when `.load()` is called (matches AndroidPdfViewer pattern)
+- **📈 Increased Buffer**: 3 pages before/after (up from 2) for smoother scrolling
+- **⚡ Progressive Rendering**: Old bitmaps stay visible while new ones render in background
+- **🔧 Smart Caching**: Automatic bitmap replacement eliminates visual artifacts
+- **📖 Better Docs**: Complete method reference and callback setup guide added
+
+### 🐛 v1.0.15 (2025-10-16) - PAGE CHANGE CALLBACK FIX + URI PERFORMANCE
 - **🚨 Page Change Detection**: `onPageChanged()` now fires during scroll (was only firing on jumpTo)
 - **🚀 URI Loading 20x Faster**: Direct ParcelFileDescriptor (no temp file copying)
 - **💾 Increased Cache**: 12 pages, 2-page buffer (~84 MB for smoother scrolling)
