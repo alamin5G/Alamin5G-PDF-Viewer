@@ -139,9 +139,18 @@ Include the library in your app-level `build.gradle`:
 
 ```gradle
 dependencies {
-    implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.15'
+    // Recommended: Latest version with callback fix and smooth zoom
+    implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.16'
+    
+    // Alternative: Use v1.0.15 if you experience any issues with v1.0.16
+    // implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.15'
 }
 ```
+
+> **💡 Version Recommendation:**
+> - **v1.0.16** (Latest) - Recommended for all new projects. Fixes callbacks not firing and zoom gaps.
+> - **v1.0.15** - Stable fallback if you experience any issues with v1.0.16.
+
 
 ### Step 3: 16KB Compatibility Configuration
 
@@ -610,6 +619,88 @@ pdfView.fromAsset("sample.pdf")
 // Memory optimized (less memory usage)
 .useBestQuality(false)  // Uses RGB_565
 ```
+
+## 📖 Complete Method Reference
+
+### Loading Methods
+
+| Method | Description | Example |
+|--------|-------------|---------|
+| `fromAsset(String)` | Load PDF from assets folder | `.fromAsset("sample.pdf")` |
+| `fromFile(File)` | Load PDF from file | `.fromFile(new File("/path/to/file.pdf"))` |
+| `fromUri(Uri)` | Load PDF from URI (fastest for content:// URIs) | `.fromUri(uri)` |
+| `fromBytes(byte[])` | Load PDF from byte array | `.fromBytes(pdfBytes)` |
+| `fromStream(InputStream)` | Load PDF from input stream | `.fromStream(inputStream)` |
+| `fromUrl(String)` | Load PDF from URL with download progress | `.fromUrl("https://example.com/file.pdf")` |
+| `load()` | **Must be called last!** Starts PDF loading | `.load()` |
+
+> **⚠️ IMPORTANT**: Always call `.load()` as the **last** method in the chain. See [Callback Setup Order](#️-important-callback-setup-order).
+
+### Navigation Methods
+
+| Method | Description | Example |
+|--------|-------------|---------|
+| `enableSwipe(boolean)` | Enable/disable swipe navigation | `.enableSwipe(true)` |
+| `swipeHorizontal(boolean)` | Set swipe direction (false = vertical) | `.swipeHorizontal(false)` |
+| `defaultPage(int)` | Set starting page (0-based index) | `.defaultPage(0)` |
+| `pages(int...)` | Load specific pages in custom order | `.pages(0, 2, 1, 3)` |
+| `jumpTo(int)` | Navigate to specific page programmatically | `pdfView.jumpTo(5)` |
+
+### Display Methods
+
+| Method | Description | Example |
+|--------|-------------|---------|
+| `enableAntialiasing(boolean)` | Smooth rendering (recommended: true) | `.enableAntialiasing(true)` |
+| `setNightMode(boolean)` | Invert colors for night reading | `.setNightMode(false)` |
+| `useBestQuality(boolean)` | ARGB_8888 (true) vs RGB_565 (false) | `.useBestQuality(true)` |
+| `fitPolicy(FitPolicy)` | How to fit PDF: WIDTH, HEIGHT, or BOTH | `.fitPolicy(PDFView.FitPolicy.WIDTH)` |
+| `spacing(int)` | Spacing between pages in dp | `.spacing(10)` |
+| `autoSpacing(boolean)` | Dynamic spacing to fit pages | `.autoSpacing(false)` |
+| `pageFitPolicy(FitPolicy)` | Individual page fit policy | `.pageFitPolicy(PDFView.FitPolicy.WIDTH)` |
+| `fitEachPage(boolean)` | Fit each page individually | `.fitEachPage(false)` |
+
+### Zoom Methods
+
+| Method | Description | Example |
+|--------|-------------|---------|
+| `enableDoubletap(boolean)` | Enable double-tap to zoom | `.enableDoubletap(true)` |
+| `enableZoom(boolean)` | Enable pinch-to-zoom | `.enableZoom(true)` |
+| `setMinZoom(float)` | Minimum zoom level | `.setMinZoom(0.5f)` |
+| `setMaxZoom(float)` | Maximum zoom level | `.setMaxZoom(5.0f)` |
+| `setMidZoom(float)` | Middle zoom level for double-tap | `.setMidZoom(1.75f)` |
+| `resetZoom()` | Reset zoom to default | `pdfView.resetZoom()` |
+| `zoomTo(float)` | Zoom to specific level programmatically | `pdfView.zoomTo(2.0f)` |
+
+### Performance Methods
+
+| Method | Description | Example |
+|--------|-------------|---------|
+| `setCacheSize(int)` | Number of pages to cache (default: 10) | `.setCacheSize(12)` |
+| `enableHardwareAcceleration(boolean)` | Use GPU acceleration | `.enableHardwareAcceleration(true)` |
+| `enableAnnotationRendering(boolean)` | Render PDF annotations/forms | `.enableAnnotationRendering(true)` |
+
+### Callback Methods (v1.0.16+)
+
+| Method | Description | Example |
+|--------|-------------|---------|
+| `onLoad(OnLoadCompleteListener)` | Called when PDF loading completes | `.onLoad(nbPages -> { })` |
+| `onError(OnErrorListener)` | Called when error occurs | `.onError(error -> { })` |
+| `onPageChange(OnPageChangeListener)` | Called when page changes | `.onPageChange((page, total) -> { })` |
+| `onDownloadProgress(OnDownloadProgressListener)` | Called during URL download | `.onDownloadProgress((bytes, total, %) -> { })` |
+
+> **✅ Fixed in v1.0.16**: Callbacks now fire correctly! See [issue #4](https://github.com/alamin5G/Alamin5G-PDF-Viewer/issues/4).
+
+### Advanced Methods
+
+| Method | Description | Example |
+|--------|-------------|---------|
+| `scrollHandle(View)` | Custom scroll handle view | `.scrollHandle(customView)` |
+| `setPositionOffset(float)` | Set scroll position (0.0 to 1.0) | `pdfView.setPositionOffset(0.5f)` |
+| `getCurrentPage()` | Get current page number | `int page = pdfView.getCurrentPage()` |
+| `getPageCount()` | Get total page count | `int total = pdfView.getPageCount()` |
+| `recycle()` | Manually release resources | `pdfView.recycle()` |
+
+
 
 **🎨 NEW in v1.0.12: Dynamic High-Quality Rendering!**
 
@@ -1298,8 +1389,8 @@ pdfView.setCacheSize(8);   // Smaller cache = less memory
 // OLD (Not 16KB compatible):
 // implementation 'com.github.barteksc:android-pdf-viewer:3.2.0-beta.1'
 
-// NEW (16KB compatible):
-implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.15'
+// NEW (16KB compatible - Latest):
+implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.16'
 
 // API is similar, just change import:
 // OLD: import com.github.barteksc.pdfviewer.PDFView;
