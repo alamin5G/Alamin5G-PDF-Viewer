@@ -75,7 +75,7 @@ afterEvaluate {
             maven(MavenPublication) {
                 groupId = 'com.github.alamin5g'
                 artifactId = 'Alamin5G-PDF-Viewer'
-                version = '1.0.14'
+                version = '1.0.17'
                 
                 // Add the AAR artifact after it's built
                 artifact bundleReleaseAar
