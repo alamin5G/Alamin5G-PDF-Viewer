@@ -5,6 +5,132 @@ All notable changes to the Alamin5G PDF Viewer library will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.17] - 2025-05-19 🚀 **BUG FIXES + NEW LISTENERS + ZOOM CONTROL + SCROLL HANDLE**
+
+### 🚨 Bug Fixes
+
+**SOLVED: loadFromFile() ignores continuousScrollMode** ([#7](https://github.com/alamin5G/Alamin5G-PDF-Viewer/issues/7))
+
+The `loadFromFile()` method unconditionally called `renderPage()` (single-page mode), ignoring the `continuousScrollMode` setting. This meant continuous scrolling was broken for all file-based loading methods.
+
+**SOLVED: Visual SIZE gaps between pages during pinch zoom** ([#2](https://github.com/alamin5G/Alamin5G-PDF-Viewer/issues/2))
+
+During pinch-zoom in continuous scroll mode, visual SIZE gaps appeared between pages. The root cause was that page positions were correctly scaled (`baseOffset * scaleFactor`) but bitmaps were drawn at their natural rendered size, which lagged behind the current zoom during the gesture. Fixed with per-page `canvas.scale()` that scales each bitmap from its rendered size to the expected visual size at current zoom.
+
+**SOLVED: Missing enableZoom() + broken builder chain** ([#5](https://github.com/alamin5G/Alamin5G-PDF-Viewer/issues/5))
+
+- `setMinZoom()`, `setMidZoom()`, `setMaxZoom()` returned `void`, breaking builder chaining
+- No way to disable zoom (pinch-to-zoom was always active)
+
+### Fixed
+
+- **🐛 loadFromFile() continuousScrollMode Fix**
+  - **Problem**: `loadFromFile()` always called `renderPage(currentPage)` regardless of `continuousScrollMode`
+  - **Root Cause**: Missing `if (continuousScrollMode)` check that existed in `loadFromAsset()` and `loadFromUri()`
+  - **Solution**: Added the same `if (continuousScrollMode) { initializePageOffsets(); renderVisiblePages(); } else { renderPage(); }` pattern
+  - **Result**: Continuous scrolling now works correctly for all loading methods
+
+- **🐛 setMinZoom/setMidZoom/setMaxZoom Return Type Fix**
+  - **Problem**: Methods returned `void`, preventing builder chaining
+  - **Solution**: Changed return type to `PDFView` for fluent API support
+  - **Result**: `.setMinZoom(0.5f).setMidZoom(1.0f).setMaxZoom(3.0f)` now chains correctly
+
+- **🐛 Pinch-Zoom Visual Gap Fix (Approach B: per-page canvas.scale)**
+  - **Problem**: During pinch-zoom, visual SIZE gaps appeared between pages because bitmaps were drawn at their natural rendered size while positions were scaled
+  - **Root Cause**: `onDraw()` used `canvas.drawBitmap(bitmap, 0, scaledOffset, paint)` which draws bitmap at natural size, not at the current zoom level
+  - **Solution**: Per-page `canvas.save() → translate → scale → draw → restore` in `onDraw()`. Each bitmap is scaled by `bitmapScale = (viewWidth * scaleFactor) / bitmap.getWidth()`, which correctly handles mixed-zoom states during re-rendering
+  - **Bonus Fix**: `canScrollVertically()` was missing `* scaleFactor` in scroll limit calculation, causing incorrect scroll boundaries at zoom levels > 1.0
+  - **Result**: Zero visual gaps at all zoom levels, during gesture AND during re-rendering. 16KB compatibility fully maintained (pure Java Canvas API changes only)
+
+### Added
+
+- **🆕 `enableZoom(boolean)`** — Enable/disable pinch-to-zoom (default: `true`)
+  ```java
+  pdfView.fromAsset("file.pdf")
+      .enableZoom(false)  // Disable pinch-to-zoom
+      .load();
+  ```
+
+- **🆕 7 New Listener Interfaces** — Complete lifecycle event coverage:
+
+  | Listener               | Method           | Description                                      |
+  | ---------------------- | ---------------- | ------------------------------------------------ |
+  | `OnDrawListener`       | `onDraw()`       | Called after each page is drawn on canvas        |
+  | `OnDrawAllListener`    | `onDrawAll()`    | Called after all pages are drawn                 |
+  | `OnPageScrollListener` | `onPageScroll()` | Called during scroll with position offset        |
+  | `OnRenderListener`     | `onRender()`     | Called after a page is successfully rendered     |
+  | `OnTapListener`        | `onTap()`        | Called on single tap (return boolean to consume) |
+  | `OnLongPressListener`  | `onLongPress()`  | Called on long press gesture                     |
+  | `OnPageErrorListener`  | `onPageError()`  | Called on page-specific render errors            |
+
+  ```java
+  pdfView.fromAsset("file.pdf")
+      .onDraw((canvas, page, width, height) -> {
+          // Draw overlays on specific pages
+      })
+      .onRender((page, width, height) -> {
+          Log.d("PDF", "Page " + page + " rendered: " + width + "x" + height);
+      })
+      .onTap(e -> {
+          // Handle tap, return true to consume
+          return false;
+      })
+      .onPageError((page, error) -> {
+          Log.e("PDF", "Error on page " + page, error);
+      })
+      .load();
+  ```
+
+- **🆕 Getter Methods** — `getMinZoom()`, `getMidZoom()`, `isZoomEnabled()`
+
+- **🆕 `DefaultScrollHandle`** — Built-in draggable scroll handle with page indicator ([#6](https://github.com/alamin5G/Alamin5G-PDF-Viewer/issues/6))
+  ```java
+  // Vertical scroll handle (right edge, default)
+  pdfView.fromAsset("file.pdf")
+      .scrollHandle(new DefaultScrollHandle(context))
+      .load();
+
+  // Horizontal scroll handle (bottom edge)
+  pdfView.fromAsset("file.pdf")
+      .scrollHandle(new DefaultScrollHandle(context, true))
+      .load();
+  ```
+
+  Features:
+  - Draggable handle bar that syncs with PDF scroll position
+  - Page indicator bubble showing current page number
+  - Auto-hides indicator after 1.5 seconds
+  - Supports vertical (right edge) and horizontal (bottom edge) orientations
+  - Touch feedback loop prevention — handle drags don't conflict with PDF scroll
+  - Properly cleans up on `recycle()`
+
+### Affected Methods (Fixed via delegation)
+
+Since these methods delegate to `loadFromFile()`, they are all fixed by this single change:
+- `fromFile()` → calls `loadFromFile()` ✅
+- `fromBytes()` → creates temp file → calls `loadFromFile()` ✅
+- `fromStream()` → creates temp file → calls `loadFromFile()` ✅
+- `fromUrl()` → downloads to temp file → calls `loadFromFile()` ✅
+
+### Migration from v1.0.16
+
+No breaking changes! All improvements are backward compatible:
+
+```gradle
+// Update dependency
+implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.17'
+```
+
+**Benefits of updating:**
+- ✅ Continuous scrolling works with `fromFile()`, `fromBytes()`, `fromStream()`, `fromUrl()`
+- ✅ Consistent behavior across ALL loading methods
+- ✅ Builder chaining for zoom methods: `.setMinZoom(0.5f).setMaxZoom(4.0f)`
+- ✅ Zoom control via `.enableZoom(false)` for fixed-view scenarios
+- ✅ 7 new listener callbacks for complete lifecycle tracking
+- ✅ Page-specific error handling with `OnPageErrorListener`
+
+---
+
 ## [1.0.15] - 2025-10-16 🐛 **CRITICAL FIX: Page Change Callback + URI Performance**
 
 ### 🚨 Critical Fixes

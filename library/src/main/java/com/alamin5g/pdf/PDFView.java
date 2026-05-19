@@ -31,6 +31,15 @@ import com.alamin5g.pdf.listener.OnLoadCompleteListener;
 import com.alamin5g.pdf.listener.OnPageChangeListener;
 import com.alamin5g.pdf.listener.OnErrorListener;
 import com.alamin5g.pdf.listener.OnDownloadProgressListener;
+import com.alamin5g.pdf.listener.OnDrawListener;
+import com.alamin5g.pdf.listener.OnDrawAllListener;
+import com.alamin5g.pdf.listener.OnPageScrollListener;
+import com.alamin5g.pdf.listener.OnRenderListener;
+import com.alamin5g.pdf.listener.OnTapListener;
+import com.alamin5g.pdf.listener.OnLongPressListener;
+import com.alamin5g.pdf.listener.OnPageErrorListener;
+
+import com.alamin5g.pdf.scroll.DefaultScrollHandle;
 
 /**
  * Complete PDF View using Android's native PdfRenderer for 16KB compatibility
@@ -79,6 +88,7 @@ public class PDFView extends FrameLayout {
     private float maxZoom = 3.0f;
     private float panX = 0f;
     private float panY = 0f;
+    private boolean zoomEnabled = true; // Issue #5: Enable/disable zoom gesture
     private ScaleGestureDetector scaleGestureDetector;
     private GestureDetector gestureDetector;
     private float lastTouchX, lastTouchY;
@@ -133,6 +143,14 @@ public class PDFView extends FrameLayout {
     private OnPageChangeListener onPageChangeListener;
     private OnErrorListener onErrorListener;
     private OnDownloadProgressListener onDownloadProgressListener;
+    // P1 Listeners (v1.0.17)
+    private OnDrawListener onDrawListener;
+    private OnDrawAllListener onDrawAllListener;
+    private OnPageScrollListener onPageScrollListener;
+    private OnRenderListener onRenderListener;
+    private OnTapListener onTapListener;
+    private OnLongPressListener onLongPressListener;
+    private OnPageErrorListener onPageErrorListener;
 
     // v1.0.16: Source tracking for deferred loading (fix for issue #4)
     private enum SourceType {
@@ -208,6 +226,12 @@ public class PDFView extends FrameLayout {
         setOnTouchListener(new OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
+                // Don't intercept touch events when scroll handle is being dragged
+                if (scrollHandle instanceof DefaultScrollHandle
+                        && ((DefaultScrollHandle) scrollHandle).isDragging()) {
+                    return false;
+                }
+
                 scaleGestureDetector.onTouchEvent(event);
                 gestureDetector.onTouchEvent(event);
 
@@ -257,6 +281,9 @@ public class PDFView extends FrameLayout {
             canvas.translate(panX, panY);
 
             // Draw only cached pages (lazy loaded)
+            // v1.0.17: Per-page canvas.scale() to eliminate visual SIZE gaps during pinch zoom
+            // Each bitmap is scaled from its rendered size to the expected visual size at current zoom
+            float viewWidth = getWidth();
             for (int i = 0; i < pageOffsets.size(); i++) {
                 Bitmap bitmap = continuousPageCache.get(i);
 
@@ -266,7 +293,25 @@ public class PDFView extends FrameLayout {
                     float baseOffset = pageOffsets.get(i);
                     float scaledOffset = baseOffset * scaleFactor;
 
-                    canvas.drawBitmap(bitmap, 0, scaledOffset, paint);
+                    // Approach B: Scale bitmap from rendered size to current zoom size
+                    // This eliminates gaps regardless of what zoom the bitmap was rendered at
+                    if (viewWidth > 0 && bitmap.getWidth() > 0) {
+                        float expectedWidth = viewWidth * scaleFactor;
+                        float bitmapScale = expectedWidth / bitmap.getWidth();
+
+                        canvas.save();
+                        canvas.translate(0, scaledOffset);
+                        canvas.scale(bitmapScale, bitmapScale);
+                        canvas.drawBitmap(bitmap, 0, 0, paint);
+                        canvas.restore();
+                    } else {
+                        canvas.drawBitmap(bitmap, 0, scaledOffset, paint);
+                    }
+
+                    // P1: OnDrawListener - called after each page is drawn
+                    if (onDrawListener != null) {
+                        onDrawListener.onLayerDrawn(canvas, i, bitmap.getWidth(), bitmap.getHeight());
+                    }
                 }
             }
 
@@ -282,6 +327,12 @@ public class PDFView extends FrameLayout {
 
                 // Draw bitmap at origin (0,0) - matrix already includes translation and spacing
                 canvas.drawBitmap(currentBitmap, 0, 0, paint);
+
+                // P1: OnDrawListener - called after page is drawn (single page mode)
+                if (onDrawListener != null) {
+                    onDrawListener.onLayerDrawn(canvas, currentPage, currentBitmap.getWidth(), currentBitmap.getHeight());
+                }
+
                 canvas.restore();
             } catch (Exception e) {
                 Log.e(TAG, "Error drawing bitmap: " + e.getMessage(), e);
@@ -293,6 +344,11 @@ public class PDFView extends FrameLayout {
             }
         } else {
             Log.w(TAG, "Cannot draw - no bitmap available");
+        }
+
+        // P1: OnDrawAllListener - called after all pages are drawn
+        if (onDrawAllListener != null) {
+            onDrawAllListener.onLayerDrawn(canvas, getWidth(), getHeight());
         }
     }
 
@@ -469,6 +525,13 @@ public class PDFView extends FrameLayout {
         // Add new scroll handle if provided
         if (scrollHandle != null) {
             addView(scrollHandle);
+
+            // Issue #6: Wire DefaultScrollHandle into PDFView
+            if (scrollHandle instanceof DefaultScrollHandle) {
+                DefaultScrollHandle handle = (DefaultScrollHandle) scrollHandle;
+                handle.setPDFView(this);
+                handle.show();
+            }
         }
 
         return this;
@@ -497,6 +560,12 @@ public class PDFView extends FrameLayout {
 
     public PDFView pageSnap(boolean pageSnap) {
         this.pageSnap = pageSnap;
+        return this;
+    }
+
+    // Issue #5: Enable/disable zoom gesture
+    public PDFView enableZoom(boolean zoomEnabled) {
+        this.zoomEnabled = zoomEnabled;
         return this;
     }
 
@@ -577,6 +646,42 @@ public class PDFView extends FrameLayout {
 
     public PDFView onDownloadProgress(OnDownloadProgressListener onDownloadProgressListener) {
         this.onDownloadProgressListener = onDownloadProgressListener;
+        return this;
+    }
+
+    // P1 Listener setters (v1.0.17)
+    public PDFView onDraw(OnDrawListener onDrawListener) {
+        this.onDrawListener = onDrawListener;
+        return this;
+    }
+
+    public PDFView onDrawAll(OnDrawAllListener onDrawAllListener) {
+        this.onDrawAllListener = onDrawAllListener;
+        return this;
+    }
+
+    public PDFView onPageScroll(OnPageScrollListener onPageScrollListener) {
+        this.onPageScrollListener = onPageScrollListener;
+        return this;
+    }
+
+    public PDFView onRender(OnRenderListener onRenderListener) {
+        this.onRenderListener = onRenderListener;
+        return this;
+    }
+
+    public PDFView onTap(OnTapListener onTapListener) {
+        this.onTapListener = onTapListener;
+        return this;
+    }
+
+    public PDFView onLongPress(OnLongPressListener onLongPressListener) {
+        this.onLongPressListener = onLongPressListener;
+        return this;
+    }
+
+    public PDFView onPageError(OnPageErrorListener onPageErrorListener) {
+        this.onPageErrorListener = onPageErrorListener;
         return this;
     }
 
@@ -780,12 +885,24 @@ public class PDFView extends FrameLayout {
                 onLoadCompleteListener.loadComplete(totalPages);
             }
 
-            renderPage(currentPage);
+            // Use lazy loading for continuous mode
+            if (continuousScrollMode) {
+                initializePageOffsets();
+                renderVisiblePages();
 
-            // Trigger initial page change event
-            if (onPageChangeListener != null) {
-                onPageChangeListener.onPageChanged(currentPage, totalPages);
-                Log.d(TAG, "Initial page change event: page " + (currentPage + 1) + " of " + totalPages);
+                // Trigger initial page change event
+                if (onPageChangeListener != null) {
+                    onPageChangeListener.onPageChanged(currentPage, totalPages);
+                    Log.d(TAG, "Initial page change event: page " + (currentPage + 1) + " of " + totalPages);
+                }
+            } else {
+                renderPage(currentPage);
+
+                // Trigger initial page change event
+                if (onPageChangeListener != null) {
+                    onPageChangeListener.onPageChanged(currentPage, totalPages);
+                    Log.d(TAG, "Initial page change event: page " + (currentPage + 1) + " of " + totalPages);
+                }
             }
 
         } catch (IOException e) {
@@ -1084,8 +1201,23 @@ public class PDFView extends FrameLayout {
         // v1.0.15: Check for page change (matches AndroidPdfViewer)
         loadPageByOffset();
 
+        // Issue #6: Sync scroll handle position when not triggered by handle drag
+        if (moveHandle && scrollHandle instanceof DefaultScrollHandle) {
+            ((DefaultScrollHandle) scrollHandle).setScroll(progress);
+        }
+
         invalidate();
         Log.d(TAG, "Position offset set to: " + progress + ", panY: " + panY);
+    }
+
+    /**
+     * Issue #6: Sync scroll handle with current scroll position.
+     * Called from computeScroll() and onScroll() to keep handle in sync.
+     */
+    private void updateScrollHandle() {
+        if (scrollHandle instanceof DefaultScrollHandle) {
+            ((DefaultScrollHandle) scrollHandle).setScroll(getPositionOffset());
+        }
     }
 
     /**
@@ -1185,7 +1317,8 @@ public class PDFView extends FrameLayout {
             return panY < 0;
         } else {
             // Check if can scroll up
-            return panY > -(totalContentHeight - getHeight());
+            // v1.0.17 fix: Must multiply by scaleFactor for correct scroll limits at zoom > 1.0
+            return panY > -(totalContentHeight * scaleFactor - getHeight());
         }
     }
 
@@ -1200,6 +1333,9 @@ public class PDFView extends FrameLayout {
             // Update position from scroller
             moveTo(-scroller.getCurrX(), -scroller.getCurrY());
 
+            // Issue #6: Sync scroll handle during fling
+            updateScrollHandle();
+
             // Request next frame
             postInvalidateOnAnimation();
         } else if (flinging) {
@@ -1207,6 +1343,10 @@ public class PDFView extends FrameLayout {
             flinging = false;
             // Final render after fling stops
             renderVisiblePages();
+
+            // Issue #6: Final handle sync after fling ends
+            updateScrollHandle();
+
             Log.d(TAG, "Fling ended, final render complete");
         }
     }
@@ -1278,20 +1418,36 @@ public class PDFView extends FrameLayout {
     }
 
     // Zoom methods
-    public void setMinZoom(float minZoom) {
+    // Issue #5: Return PDFView for builder chaining
+    public PDFView setMinZoom(float minZoom) {
         this.minZoom = minZoom;
+        return this;
     }
 
-    public void setMidZoom(float midZoom) {
+    public PDFView setMidZoom(float midZoom) {
         this.midZoom = midZoom;
+        return this;
     }
 
-    public void setMaxZoom(float maxZoom) {
+    public PDFView setMaxZoom(float maxZoom) {
         this.maxZoom = maxZoom;
+        return this;
     }
 
     public float getMaxZoom() {
         return maxZoom;
+    }
+
+    public float getMinZoom() {
+        return minZoom;
+    }
+
+    public float getMidZoom() {
+        return midZoom;
+    }
+
+    public boolean isZoomEnabled() {
+        return zoomEnabled;
     }
 
     public void zoomTo(float zoom) {
@@ -1472,6 +1628,11 @@ public class PDFView extends FrameLayout {
             executorService.shutdown();
             executorService = null;
         }
+
+        // Issue #6: Cleanup scroll handle
+        if (scrollHandle instanceof DefaultScrollHandle) {
+            ((DefaultScrollHandle) scrollHandle).destroy();
+        }
     }
 
     /**
@@ -1585,6 +1746,12 @@ public class PDFView extends FrameLayout {
             // Trigger listener (matches AndroidPdfViewer's showPage())
             if (onPageChangeListener != null) {
                 onPageChangeListener.onPageChanged(currentPage, totalPages);
+            }
+
+            // P1: OnPageScrollListener - notify scroll position change
+            if (onPageScrollListener != null) {
+                float scrollOffset = getPositionOffset();
+                onPageScrollListener.onPageScrolled(currentPage, scrollOffset);
             }
 
             Log.d(TAG, "Page changed: " + (previousPage + 1) + " → " + (currentPage + 1) + " of " + totalPages);
@@ -1869,6 +2036,10 @@ public class PDFView extends FrameLayout {
                 // Close the page
                 page.close();
 
+                // Capture final values for lambda
+                final int finalWidth = width;
+                final int finalHeight = height;
+
                 // Update UI on main thread
                 post(() -> {
                     // Safely replace current bitmap
@@ -1901,11 +2072,20 @@ public class PDFView extends FrameLayout {
 
                     invalidate();
                     Log.d(TAG, "Successfully rendered page: " + pageIndex);
+
+                    // P1: OnRenderListener - notify page rendered
+                    if (onRenderListener != null) {
+                        onRenderListener.onPageRendered(pageIndex, finalWidth, finalHeight);
+                    }
                 });
 
             } catch (Exception e) {
                 Log.e(TAG, "Error rendering page " + pageIndex + ": " + e.getMessage());
-                if (onErrorListener != null) {
+                // P1: OnPageErrorListener - notify page-specific error
+                if (onPageErrorListener != null) {
+                    final int page = pageIndex;
+                    post(() -> onPageErrorListener.onPageError(page, e));
+                } else if (onErrorListener != null) {
                     post(() -> onErrorListener.onError(e));
                 }
             }
@@ -1963,6 +2143,11 @@ public class PDFView extends FrameLayout {
 
         @Override
         public boolean onScaleBegin(ScaleGestureDetector detector) {
+            // Issue #5: Block zoom gesture when disabled
+            if (!zoomEnabled) {
+                Log.d(TAG, "Zoom gesture BLOCKED - zoom disabled");
+                return false;
+            }
             Log.d(TAG, "Zoom gesture STARTED at zoom: " + scaleFactor);
             return true;
         }
@@ -2004,6 +2189,9 @@ public class PDFView extends FrameLayout {
             if (continuousScrollMode) {
                 // v1.0.14: Use moveRelativeTo() for proper bounds checking
                 moveRelativeTo(-distanceX, -distanceY);
+
+                // Issue #6: Sync scroll handle during gesture scroll
+                updateScrollHandle();
 
                 // v1.0.13: Trigger lazy loading when scrolling (only if not flinging)
                 if (!flinging) {
@@ -2129,6 +2317,23 @@ public class PDFView extends FrameLayout {
                 }
             }
             return false;
+        }
+
+        @Override
+        public boolean onSingleTapConfirmed(MotionEvent e) {
+            // P1: OnTapListener - allow user to handle tap
+            if (onTapListener != null) {
+                return onTapListener.onTap(e);
+            }
+            return false;
+        }
+
+        @Override
+        public void onLongPress(MotionEvent e) {
+            // P1: OnLongPressListener - notify long press
+            if (onLongPressListener != null) {
+                onLongPressListener.onLongPress(e);
+            }
         }
 
         @Override

@@ -1,1 +1,8 @@
 /build
+.cursor/**
+plans/praytime-master-plan-9fbe1a4f.plan.md
+REMAINING_METHODS_ANALYSIS.md
+app/src/main/java/com/alamin5g/praytime/
+hs_err_pid57040.log
+nginx-panel-config.conf
+replay_pid57040.log
