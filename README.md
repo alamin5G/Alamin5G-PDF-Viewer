@@ -19,7 +19,7 @@
 Fully backward compatible — just update the version:
 
 ```gradle
-implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.17'
+    implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:v1.0.17'
 ```
 
 ## 🏆 Why Choose Alamin5G PDF Viewer?
