@@ -68,7 +68,7 @@ dependencyResolutionManagement {
 
 ```gradle
 dependencies {
-    implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:1.0.17'
+    implementation 'com.github.alamin5g:Alamin5G-PDF-Viewer:v1.0.17'
 }
 ```
 
